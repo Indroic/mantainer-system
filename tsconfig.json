@@ -1,0 +1,3 @@
+{
+  "extends": "@mantainer-system/config/tsconfig.base.json"
+}

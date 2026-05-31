@@ -1,0 +1,24 @@
+{
+  "name": "@mantainer-system/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@mantainer-system/db": "workspace:*",
+    "@mantainer-system/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@mantainer-system/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
