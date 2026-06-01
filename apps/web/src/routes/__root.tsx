@@ -1,9 +1,7 @@
 import type { AppRouter } from "@mantainer-system/api/routers/index";
 import { Toaster } from "@mantainer-system/ui/components/sonner";
 import type { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import Header from "../components/header";
@@ -51,8 +49,6 @@ function RootDocument() {
           <Outlet />
         </div>
         <Toaster richColors />
-        <TanStackRouterDevtools position="bottom-left" />
-        <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
         <Scripts />
       </body>
     </html>
