@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  auth-server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: auth-server
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
+      - BETTER_AUTH_URL=http://localhost
+      - CORS_ORIGIN=http://localhost
+    ports:
+      - "3000:3000"
+    networks:
+      - dokploy-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network

@@ -1,0 +1,27 @@
+[project]
+name = "sgmm-backend"
+version = "2.0.0"
+description = "Backend REST API para el Sistema de Gestión de Mantenimiento de Maquinaria Pesada (SGMM) utilizando HexCore"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "hexcore>=2.0.5",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "sqlalchemy[asyncio]>=2.0.28",
+    "aiosqlite>=0.20.0",
+    "pyjwt>=2.8.0",
+    "cryptography>=42.0.0",
+    "alembic>=1.13.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

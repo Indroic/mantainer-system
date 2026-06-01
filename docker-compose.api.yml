@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: backend
+    environment:
+      - PORT=8000
+      - SQL_DATABASE_URL=sqlite:////app/data/sgmm.db
+      - ASYNC_SQL_DATABASE_URL=sqlite+aiosqlite:////app/data/sgmm.db
+      - BETTER_AUTH_URL=http://auth-server:3000
+      - JWKS_URL=http://auth-server:3000/api/auth/jwks
+    volumes:
+      - sgmm_db_data:/app/data
+    ports:
+      - "8000:8000"
+    networks:
+      - dokploy-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  sgmm_db_data:
+    name: sgmm_db_data
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network

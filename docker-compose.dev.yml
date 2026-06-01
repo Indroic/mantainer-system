@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # Base de datos local Postgres para el Servidor de Autenticación de Better Auth
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_secure_password
+      POSTGRES_DB: sgmm_auth_db_dev
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sgmm-dev-network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sgmm_auth_db_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Servidor de Autenticación Better Auth (Modo Dev)
+  auth-server-dev:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: auth-server-dev
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres-dev:5432/sgmm_auth_db_dev
+      - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
+      - BETTER_AUTH_URL=http://localhost:3000
+      - CORS_ORIGIN=http://localhost:5173
+    ports:
+      - "3000:3000"
+    networks:
+      - sgmm-dev-network
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+
+  # API REST FastAPI de Python (Modo Dev)
+  backend-dev:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: backend-dev
+    environment:
+      - PORT=8000
+      - SQL_DATABASE_URL=sqlite:////app/data/sgmm.db
+      - ASYNC_SQL_DATABASE_URL=sqlite+aiosqlite:////app/data/sgmm.db
+      - BETTER_AUTH_URL=http://auth-server-dev:3000
+      - JWKS_URL=http://auth-server-dev:3000/api/auth/jwks
+    volumes:
+      - sgmm_db_dev_data:/app/data
+    ports:
+      - "8000:8000"
+    networks:
+      - sgmm-dev-network
+    depends_on:
+      - auth-server-dev
+
+  # Frontend Web TanStack Start (Modo Dev)
+  web-dev:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: web-dev
+    environment:
+      - VITE_SERVER_URL=http://localhost:8000
+    ports:
+      - "80:80"
+    networks:
+      - sgmm-dev-network
+    depends_on:
+      - backend-dev
+      - auth-server-dev
+
+volumes:
+  postgres_dev_data:
+    name: sgmm_postgres_dev_data
+  sgmm_db_dev_data:
+    name: sgmm_db_dev_data
+
+networks:
+  sgmm-dev-network:
+    name: sgmm-dev-network

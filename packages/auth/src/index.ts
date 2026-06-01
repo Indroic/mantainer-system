@@ -3,6 +3,7 @@ import * as schema from "@mantainer-system/db/schema/auth";
 import { env } from "@mantainer-system/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { jwt } from "better-auth/plugins";
 
 export function createAuth() {
   const db = createDb();
@@ -26,7 +27,9 @@ export function createAuth() {
         httpOnly: true,
       },
     },
-    plugins: [],
+    plugins: [
+      jwt()
+    ],
   });
 }
 

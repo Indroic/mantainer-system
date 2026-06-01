@@ -1,0 +1,267 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMachine, useUpdateHorometer, useChangeMachineStatus } from "@/features/maquinaria/hooks/use-machines";
+import { useOrders } from "@/features/mantenimiento/hooks/use-maintenance";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import TechnicalHistoryTimeline from "@/features/reportes/components/technical-history-timeline";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@mantainer-system/ui/components/card";
+import { Button } from "@mantainer-system/ui/components/button";
+import { Input } from "@mantainer-system/ui/components/input";
+import { Label } from "@mantainer-system/ui/components/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@mantainer-system/ui/components/tabs";
+import { Badge } from "@mantainer-system/ui/components/badge";
+import { Skeleton } from "@mantainer-system/ui/components/skeleton";
+import { CpuIcon, GaugeIcon, ShieldCheckIcon, AlertTriangleIcon, WrenchIcon, CalendarIcon, InfoIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { cn } from "@mantainer-system/ui/lib/utils";
+import type { MachineStatus } from "@/features/maquinaria/types";
+
+export const Route = createFileRoute("/_authenticated/maquinaria/$id/")({
+  component: MaquinariaFichaComponent,
+});
+
+function MaquinariaFichaComponent() {
+  const { id } = Route.useParams();
+  const { isAdmin, isSupervisor } = useAuth();
+
+  // Queries
+  const { data: machine, isLoading: machineLoading } = useMachine(id);
+  const { data: orders = [], isLoading: ordersLoading } = useOrders();
+
+  // Mutaciones
+  const updateHorometerMutation = useUpdateHorometer(id);
+  const changeStatusMutation = useChangeMachineStatus(id);
+
+  // Estados Locales
+  const [horometer, setHorometer] = useState<number>(0);
+  const [status, setStatus] = useState<string>("");
+
+  useEffect(() => {
+    if (machine) {
+      setHorometer(machine.current_horometer);
+      setStatus(machine.status);
+    }
+  }, [machine]);
+
+  if (machineLoading || ordersLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64 rounded bg-slate-800" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-44 md:col-span-2 rounded bg-slate-800" />
+          <Skeleton className="h-44 rounded bg-slate-800" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!machine) {
+    return (
+      <div className="text-center py-10 bg-slate-900/20 border border-slate-800 rounded-2xl">
+        <AlertTriangleIcon className="size-8 mx-auto text-rose-500 mb-2" />
+        <p className="text-slate-500 text-sm font-semibold">No se encontró la maquinaria pesada solicitada.</p>
+      </div>
+    );
+  }
+
+  const isBaja = machine.status === "DADA_DE_BAJA";
+  const machineOrders = orders.filter((o) => o.machine_id === machine.id);
+
+  // Validación local estricta de horómetro
+  const isHorometerInvalid = horometer < machine.current_horometer;
+
+  const handleUpdateHorometer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isHorometerInvalid) {
+      toast.error("El horómetro acumulado ingresado no puede ser menor al actual");
+      return;
+    }
+
+    await updateHorometerMutation.mutateAsync({
+      current_horometer: horometer,
+    });
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    await changeStatusMutation.mutateAsync({
+      status: newStatus as MachineStatus,
+    });
+  };
+
+  // Estilo de estados
+  const statusStyles: Record<MachineStatus, string> = {
+    ACTIVA: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    EN_MANTENIMIENTO: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    FUERA_DE_SERVICIO: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    DADA_DE_BAJA: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+  };
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      {/* Cabecera superior premium */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+              <CpuIcon className="size-6 text-indigo-400" />
+              Ficha Técnica: {machine.code}
+            </h2>
+            <Badge className={cn("px-2 py-0.5 rounded-lg border text-[10px] font-bold uppercase", statusStyles[machine.status])}>
+              {machine.status}
+            </Badge>
+          </div>
+          <p className="text-sm text-slate-400">
+            {machine.brand} {machine.model} · Serial del Motor: {machine.motor_serial}
+          </p>
+        </div>
+      </div>
+
+      {/* Selector de Pestañas de Ficha vs Historial */}
+      <Tabs defaultValue="ficha" className="w-full">
+        <TabsList className="bg-slate-900 border border-slate-800 rounded-xl p-1 mb-6 flex justify-start w-fit">
+          <TabsTrigger value="ficha" className="rounded-lg px-4 py-2 text-xs font-semibold text-slate-400 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+            <InfoIcon className="size-4 mr-2" />
+            Especificaciones y Control
+          </TabsTrigger>
+          <TabsTrigger value="historial" className="rounded-lg px-4 py-2 text-xs font-semibold text-slate-400 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+            <WrenchIcon className="size-4 mr-2" />
+            Historial de Mantenimientos
+          </TabsTrigger>
+        </TabsList>
+
+        {/* CONTENIDO 1: FICHA TÉCNICA Y CONTROLES */}
+        <TabsContent value="ficha" className="space-y-6 outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Especificaciones de Activo */}
+            <Card className="lg:col-span-2 border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl shadow-xl">
+              <CardHeader className="border-b border-slate-800/60">
+                <CardTitle className="text-lg font-bold text-slate-100">Ficha Técnica e Inserción</CardTitle>
+                <CardDescription className="text-xs text-slate-400">Características de fábrica del activo</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Código del Activo</p>
+                  <p className="text-sm font-semibold text-slate-200 mt-0.5">{machine.code}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Serial del Motor</p>
+                  <p className="text-sm font-semibold text-slate-200 mt-0.5">{machine.motor_serial}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Marca</p>
+                  <p className="text-sm font-semibold text-slate-200 mt-0.5">{machine.brand}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Modelo</p>
+                  <p className="text-sm font-semibold text-slate-200 mt-0.5">{machine.model}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Año de Fabricación</p>
+                  <p className="text-sm font-semibold text-slate-200 mt-0.5 flex items-center gap-1.5 mt-0.5">
+                    <CalendarIcon className="size-4 text-slate-500" />
+                    {machine.manufacture_year}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Horómetro de Alta</p>
+                  <p className="text-sm font-mono font-semibold text-slate-200 mt-0.5">{machine.current_horometer} hrs</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Panel Lateral de Controles Rápidos */}
+            <div className="space-y-6">
+              {/* Control de Horómetro */}
+              <Card className="border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl shadow-xl">
+                <CardHeader className="border-b border-slate-800/60 pb-3">
+                  <CardTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <GaugeIcon className="size-4.5 text-indigo-400" />
+                    Actualizar Horómetro
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <form onSubmit={handleUpdateHorometer} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="horometer" className="text-xs text-slate-300">Horómetro Acumulado (hrs)</Label>
+                      <Input
+                        id="horometer"
+                        type="number"
+                        step="0.1"
+                        disabled={isBaja}
+                        value={horometer}
+                        onChange={(e) => setHorometer(Number(e.target.value))}
+                        className="bg-slate-950/80 border-slate-800 rounded-xl"
+                      />
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        Horómetro actual del activo: {machine.current_horometer} hrs
+                      </p>
+                    </div>
+
+                    {isHorometerInvalid && (
+                      <div className="p-2.5 rounded-xl bg-rose-950/20 border border-rose-500/20 text-rose-400 text-xs flex gap-2">
+                        <AlertTriangleIcon className="size-4.5 shrink-0 mt-0.5" />
+                        <span>No se permite un valor inferior al actual.</span>
+                      </div>
+                    )}
+
+                    <Button
+                      type="submit"
+                      disabled={isBaja || updateHorometerMutation.isPending || isHorometerInvalid}
+                      className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold"
+                    >
+                      {updateHorometerMutation.isPending ? "Guardando..." : "Actualizar"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Control de Estado de Activo (Administrador y Supervisor) */}
+              {(isAdmin || isSupervisor) && (
+                <Card className="border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl shadow-xl">
+                  <CardHeader className="border-b border-slate-800/60 pb-3">
+                    <CardTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <ShieldCheckIcon className="size-4.5 text-indigo-400" />
+                      Estado de Disponibilidad
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-300">Cambiar disponibilidad</Label>
+                      <Select
+                        disabled={isBaja}
+                        value={status}
+                        onValueChange={(val) => handleStatusChange(val || "ACTIVA")}
+                      >
+                        <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
+                          <SelectValue placeholder="Estado" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl">
+                          <SelectItem value="ACTIVA">Activa</SelectItem>
+                          <SelectItem value="EN_MANTENIMIENTO">En Mantenimiento</SelectItem>
+                          <SelectItem value="FUERA_DE_SERVICIO">Fuera de Servicio</SelectItem>
+                          {isBaja && <SelectItem value="DADA_DE_BAJA">Dada de Baja</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {isBaja && (
+                      <div className="p-3 bg-slate-950/80 border border-slate-850 rounded-xl text-[10px] text-slate-500 text-center font-bold uppercase tracking-wider leading-relaxed">
+                        Este activo ha sido dado de baja de forma lógica y es inmutable.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* CONTENIDO 2: HISTORIAL DE MANTENIMIENTOS */}
+        <TabsContent value="historial" className="outline-none">
+          <TechnicalHistoryTimeline orders={machineOrders} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

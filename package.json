@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "turbo dev",
+    "dev:all": "pnpm dev & (cd apps/backend && bash start.sh) & wait",
     "build": "turbo build",
     "check-types": "turbo check-types",
     "dev:web": "turbo -F web dev",
