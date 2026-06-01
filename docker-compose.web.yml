@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+        - VITE_AUTH_URL=${VITE_AUTH_URL}
     container_name: web
     networks:
       - dokploy-network
