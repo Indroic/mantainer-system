@@ -22,3 +22,4 @@ COPY --from=builder /app/apps/web/public/robots.txt /usr/share/nginx/html/robots
 COPY --from=builder /app/apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+EXPOSE 3000
