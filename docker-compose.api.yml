@@ -13,7 +13,7 @@ services:
       - BETTER_AUTH_URL=http://auth-server:3000
       - JWKS_URL=http://auth-server:3000/api/auth/jwks
     networks:
-      - sgmm-network
+      - dokploy-network
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
@@ -23,5 +23,5 @@ services:
       start_period: 15s
 
 networks:
-  sgmm-network:
-    name: sgmm-network
+  dokploy-network:
+    name: dokploy-network

@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - sgmm-network
+      - dokploy-network
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d sgmm_auth_db"]
@@ -35,7 +35,7 @@ services:
   #   ports:
   #     - "5050:80"
   #   networks:
-  #     - sgmm-network
+  #     - dokploy-network
   #   depends_on:
   #     - postgres
   #   restart: always
@@ -45,5 +45,5 @@ volumes:
     name: sgmm_postgres_data
 
 networks:
-  sgmm-network:
-    name: sgmm-network
+  dokploy-network:
+    name: dokploy-network

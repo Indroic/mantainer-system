@@ -10,7 +10,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
     networks:
-      - sgmm-network
+      - dokploy-network
     restart: "no"
 
   # Tarea de un solo disparo para ejecutar las migraciones de la API FastAPI (Alembic)
@@ -23,10 +23,10 @@ services:
       - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
       - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
     networks:
-      - sgmm-network
+      - dokploy-network
     entrypoint: ["alembic", "upgrade", "head"]
     restart: "no"
 
 networks:
-  sgmm-network:
-    name: sgmm-network
+  dokploy-network:
+    name: dokploy-network
