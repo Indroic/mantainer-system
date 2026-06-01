@@ -14,7 +14,7 @@ services:
       - BETTER_AUTH_URL=http://localhost
       - CORS_ORIGIN=http://localhost
     networks:
-      - dokploy-network
+      - sgmm-network
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
@@ -24,6 +24,6 @@ services:
       start_period: 15s
 
 networks:
-  dokploy-network:
+  sgmm-network:
     external: true
-    name: dokploy-network
+    name: sgmm-network
