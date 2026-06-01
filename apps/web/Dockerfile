@@ -15,25 +15,10 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter web build
 
 # Etapa 2: Producción
-FROM node:22-alpine AS runner
-RUN npm install -g pnpm
+FROM nginx:1.27-alpine AS runner
 
-WORKDIR /app
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/web/public/robots.txt /usr/share/nginx/html/robots.txt
+COPY --from=builder /app/apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copiar la aplicación compilada de la etapa anterior
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/packages/ ./packages/
-COPY --from=builder /app/apps/web/dist ./apps/web/dist
-COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
-COPY --from=builder /app/apps/web/start-server.mjs /app/apps/web/start-server.mjs
-
-# Instalar solo dependencias de producción del monorepo
-RUN pnpm install --prod --frozen-lockfile
-
-EXPOSE 3000
-
-# Healthcheck robusto apuntando al puerto local 3000 del SSR
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
-
-ENTRYPOINT ["node", "apps/web/start-server.mjs"]
+EXPOSE 80

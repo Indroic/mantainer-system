@@ -6,15 +6,11 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     container_name: web
-    environment:
-      - VITE_AUTH_URL=http://auth-server:3000
-      - VITE_API_URL=http://backend:8000
-      - PORT=3000
     networks:
       - dokploy-network
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))\""]
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ > /dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3

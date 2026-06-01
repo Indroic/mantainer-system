@@ -9,12 +9,10 @@ import {
   DropdownMenuTrigger,
 } from "@mantainer-system/ui/components/dropdown-menu";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
-import { Link, useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
 
 export default function UserMenu() {
-  const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
@@ -23,9 +21,9 @@ export default function UserMenu() {
 
   if (!session) {
     return (
-      <Link to="/login">
+      <a href="/login">
         <Button variant="outline">Sign In</Button>
-      </Link>
+      </a>
     );
   }
 
@@ -45,9 +43,7 @@ export default function UserMenu() {
               authClient.signOut({
                 fetchOptions: {
                   onSuccess: () => {
-                    navigate({
-                      to: "/",
-                    });
+                    window.location.href = "/";
                   },
                 },
               });

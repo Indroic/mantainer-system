@@ -2,7 +2,6 @@ import { Button } from "@mantainer-system/ui/components/button";
 import { Input } from "@mantainer-system/ui/components/input";
 import { Label } from "@mantainer-system/ui/components/label";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -11,9 +10,6 @@ import { authClient } from "@/lib/auth-client";
 import Loader from "./loader";
 
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
-  const navigate = useNavigate({
-    from: "/",
-  });
   const { isPending } = authClient.useSession();
 
   const form = useForm({
@@ -29,9 +25,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         },
         {
           onSuccess: () => {
-            navigate({
-              to: "/dashboard",
-            });
+            window.location.href = "/dashboard";
             toast.success("Sign in successful");
           },
           onError: (error) => {

@@ -1,7 +1,7 @@
 import { env } from "@mantainer-system/env/web";
 import { authClient } from "./auth-client";
 
-const API_BASE_URL = typeof window !== "undefined" ? "/api" : env.VITE_API_URL;
+const API_BASE_URL = env.VITE_API_URL;
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;
