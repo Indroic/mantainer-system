@@ -12,8 +12,6 @@ services:
       - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
       - BETTER_AUTH_URL=http://auth-server:3000
       - JWKS_URL=http://auth-server:3000/api/auth/jwks
-    ports:
-      - "8000:8000"
     networks:
       - dokploy-network
     restart: always

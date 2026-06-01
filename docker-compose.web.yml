@@ -8,8 +8,6 @@ services:
     container_name: web
     environment:
       - VITE_SERVER_URL=http://localhost
-    ports:
-      - "80:80"
     networks:
       - dokploy-network
     restart: always

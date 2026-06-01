@@ -13,8 +13,6 @@ services:
       - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
       - BETTER_AUTH_URL=http://localhost
       - CORS_ORIGIN=http://localhost
-    ports:
-      - "3000:3000"
     networks:
       - dokploy-network
     restart: always
