@@ -96,8 +96,16 @@ async function handleRequest(req, res) {
     if (await tryServeStatic(req, res)) return;
 
     const response = await serverEntry.fetch(toRequest(req));
+    const headers = new Headers(response.headers);
+    const contentType = headers.get("content-type") || "";
 
-    res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+    if (contentType.includes("text/html")) {
+      headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+      headers.set("pragma", "no-cache");
+      headers.set("expires", "0");
+    }
+
+    res.writeHead(response.status, Object.fromEntries(headers.entries()));
 
     if (!response.body) {
       res.end();
