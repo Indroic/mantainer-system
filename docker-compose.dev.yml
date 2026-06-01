@@ -33,8 +33,8 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres-dev:5432/sgmm_auth_db_dev
       - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
-      - BETTER_AUTH_URL=http://localhost:3000
-      - CORS_ORIGIN=http://localhost:5173
+      - BETTER_AUTH_URL=http://localhost
+      - CORS_ORIGIN=http://localhost
     ports:
       - "3000:3000"
     networks:
@@ -71,7 +71,8 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: web-dev
     environment:
-      - VITE_SERVER_URL=http://localhost:8000
+      - VITE_AUTH_URL=http://auth-server-dev:3000
+      - VITE_API_URL=http://backend-dev:8000
     ports:
       - "80:80"
     networks:

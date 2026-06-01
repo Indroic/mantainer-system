@@ -7,9 +7,13 @@ import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { toast } from "sonner";
 
+import { env } from "@mantainer-system/env/web";
+
 import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 import { TRPCProvider } from "./utils/trpc";
+
+const authBaseURL = typeof window !== "undefined" ? window.location.origin : env.VITE_AUTH_URL;
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -28,7 +32,7 @@ export const queryClient = new QueryClient({
 const trpcClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: `${env.VITE_SERVER_URL}/trpc`,
+      url: `${authBaseURL}/trpc`,
       fetch(url, options) {
         return fetch(url, {
           ...options,
