@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Tarea de un solo disparo para ejecutar las migraciones de Better Auth (Drizzle)
+  auth-migrate:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile.migrate
+    container_name: auth-migrate
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+    networks:
+      - dokploy-network
+    restart: "no"
+
+  # Tarea de un solo disparo para ejecutar las migraciones de la API FastAPI (Alembic)
+  backend-migrate:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: backend-migrate
+    environment:
+      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+    networks:
+      - dokploy-network
+    entrypoint: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network

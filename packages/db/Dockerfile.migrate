@@ -1,0 +1,15 @@
+FROM node:20-alpine
+RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copiar archivos de configuración del monorepo
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY packages/ ./packages/
+
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile
+
+# El comando por defecto ejecutará las migraciones de Drizzle sobre Postgres
+CMD ["pnpm", "--filter", "@mantainer-system/db", "db:migrate"]
