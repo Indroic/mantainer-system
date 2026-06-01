@@ -16,7 +16,7 @@ RUN pnpm --filter web build
 
 # Etapa 2: Producción
 FROM node:22-alpine AS runner
-RUN apk add --no-cache nginx bash
+RUN apk add --no-cache nginx
 RUN npm install -g pnpm
 
 WORKDIR /app
@@ -27,16 +27,13 @@ COPY --from=builder /app/packages/ ./packages/
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/apps/web/nginx.conf /etc/nginx/http.d/default.conf
+COPY --from=builder /app/apps/web/entrypoint.sh /app/entrypoint.sh
 
 # Instalar solo dependencias de producción del monorepo
 RUN pnpm install --prod --frozen-lockfile
 
-# Crear un script de inicio para levantar el servidor SSR y Nginx
-RUN echo '#!/bin/bash\n\
-echo "Iniciando TanStack Start SSR en puerto 3000..."\n\
-PORT=3000 node apps/web/dist/server/server.js &\n\
-echo "Iniciando Nginx Proxy Inverso en puerto 80..."\n\
-nginx -g "daemon off;"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+# Asegurar permisos de ejecución para el entrypoint
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 80
 
