@@ -8,8 +8,8 @@ export const env = createEnv({
     VITE_API_URL: z.url(),
   },
   runtimeEnv: {
-    ...(typeof process !== "undefined" ? process.env : {}),
-    ...((import.meta as any).env ?? {}),
+    VITE_AUTH_URL: (typeof window !== "undefined" && (window as any).env?.VITE_AUTH_URL) || (import.meta as any).env?.VITE_AUTH_URL,
+    VITE_API_URL: (typeof window !== "undefined" && (window as any).env?.VITE_API_URL) || (import.meta as any).env?.VITE_API_URL,
   },
   emptyStringAsUndefined: true,
 });
