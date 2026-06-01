@@ -25,5 +25,4 @@ services:
 
 networks:
   sgmm-network:
-    external: true
     name: sgmm-network
