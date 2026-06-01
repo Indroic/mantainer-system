@@ -16,7 +16,6 @@ RUN pnpm --filter web build
 
 # Etapa 2: Producción
 FROM node:22-alpine AS runner
-RUN apk add --no-cache nginx
 RUN npm install -g pnpm
 
 WORKDIR /app
@@ -26,20 +25,15 @@ COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.ya
 COPY --from=builder /app/packages/ ./packages/
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
-RUN rm -rf /etc/nginx/http.d/*
-COPY --from=builder /app/apps/web/nginx.conf /etc/nginx/http.d/default.conf
-COPY --from=builder /app/apps/web/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder /app/apps/web/start-server.mjs /app/apps/web/start-server.mjs
 
 # Instalar solo dependencias de producción del monorepo
 RUN pnpm install --prod --frozen-lockfile
 
-# Asegurar permisos de ejecución para el entrypoint
-RUN chmod +x /app/entrypoint.sh
-
-EXPOSE 80
+EXPOSE 3000
 
 # Healthcheck robusto apuntando al puerto local 3000 del SSR
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["node", "apps/web/start-server.mjs"]

@@ -9,6 +9,7 @@ services:
     environment:
       - VITE_AUTH_URL=http://auth-server:3000
       - VITE_API_URL=http://backend:8000
+      - PORT=3000
     networks:
       - dokploy-network
     restart: always

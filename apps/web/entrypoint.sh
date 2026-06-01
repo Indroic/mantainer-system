@@ -1,6 +1,5 @@
 #!/bin/sh
-echo "Iniciando TanStack Start SSR en puerto 3000..."
-PORT=3000 node apps/web/dist/server/server.js &
+set -eu
 
-echo "Iniciando Nginx Proxy Inverso en puerto 80..."
-nginx -g "daemon off;"
+echo "Iniciando TanStack Start SSR directo en puerto 3000..."
+exec env PORT=3000 node apps/web/start-server.mjs

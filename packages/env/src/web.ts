@@ -7,6 +7,9 @@ export const env = createEnv({
     VITE_AUTH_URL: z.url(),
     VITE_API_URL: z.url(),
   },
-  runtimeEnv: (import.meta as any).env,
+  runtimeEnv: {
+    ...(typeof process !== "undefined" ? process.env : {}),
+    ...((import.meta as any).env ?? {}),
+  },
   emptyStringAsUndefined: true,
 });
