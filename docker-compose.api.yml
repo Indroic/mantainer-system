@@ -8,12 +8,10 @@ services:
     container_name: backend
     environment:
       - PORT=8000
-      - SQL_DATABASE_URL=sqlite:////app/data/sgmm.db
-      - ASYNC_SQL_DATABASE_URL=sqlite+aiosqlite:////app/data/sgmm.db
+      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
       - BETTER_AUTH_URL=http://auth-server:3000
       - JWKS_URL=http://auth-server:3000/api/auth/jwks
-    volumes:
-      - sgmm_db_data:/app/data
     ports:
       - "8000:8000"
     networks:
@@ -25,10 +23,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-
-volumes:
-  sgmm_db_data:
-    name: sgmm_db_data
 
 networks:
   dokploy-network:

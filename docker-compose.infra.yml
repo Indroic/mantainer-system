@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: sgmm_auth_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     networks:
       - dokploy-network
     restart: always
@@ -21,6 +19,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # ----------------------------------------------------------------------
+  # PGADMIN WEB (OPCIONAL / COMPOST COMPLETO PARA REVISIÓN DE LA BD)
+  # Instrucciones: Si necesitas inspeccionar visualmente tu base de datos,
+  # simplemente descomenta esta sección. PgAdmin se levantará de forma interna 
+  # en el puerto 80 del contenedor, y puedes asignarle un puerto público o dominio en Dokploy.
+  # ----------------------------------------------------------------------
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@sgmm.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin_secure_password_123
+  #   ports:
+  #     - "5050:80"
+  #   networks:
+  #     - dokploy-network
+  #   depends_on:
+  #     - postgres
+  #   restart: always
 
 volumes:
   postgres_data:

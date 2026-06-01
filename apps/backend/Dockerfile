@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libssl-dev \
     libffi-dev \
+    libpq-dev \
+    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,13 +26,10 @@ COPY src/ ./src/
 COPY alembic/ ./alembic/
 COPY alembic.ini config.py ./
 
-# Crear el directorio persistente para almacenar la base de datos SQLite
-RUN mkdir -p /app/data
-
-# Configurar variables de entorno por defecto para producción
+# Configurar variables de entorno por defecto para producción usando PostgreSQL
 ENV PORT=8000
-ENV SQL_DATABASE_URL="sqlite:////app/data/sgmm.db"
-ENV ASYNC_SQL_DATABASE_URL="sqlite+aiosqlite:////app/data/sgmm.db"
+ENV SQL_DATABASE_URL="postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db"
+ENV ASYNC_SQL_DATABASE_URL="postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db"
 
 EXPOSE 8000
 
