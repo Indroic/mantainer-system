@@ -1,6 +1,6 @@
 import http from "node:http";
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { Readable } from "node:stream";
 
@@ -31,6 +31,26 @@ function getContentType(filePath) {
   return contentTypes.get(extname(filePath)) || "application/octet-stream";
 }
 
+async function resolveAssetFallback(requestPath) {
+  const assetPrefixMatch = requestPath.match(/^\/assets\/([^/]+)$/);
+  if (!assetPrefixMatch) return null;
+
+  const requestedName = assetPrefixMatch[1];
+  const requestedExt = extname(requestedName);
+  const requestedStem = requestedName.slice(0, requestedName.length - requestedExt.length);
+  const requestedBasePrefix = requestedStem.split("-")[0];
+
+  const assetsDir = join(clientDir, "assets");
+  const entries = await readdir(assetsDir);
+
+  const candidate = entries.find((entry) => {
+    if (extname(entry) !== requestedExt) return false;
+    return entry.startsWith(`${requestedBasePrefix}-`);
+  });
+
+  return candidate ? join(assetsDir, candidate) : null;
+}
+
 async function tryServeStatic(req, res) {
   if (req.method !== "GET" && req.method !== "HEAD") return false;
 
@@ -44,12 +64,14 @@ async function tryServeStatic(req, res) {
 
   if (!filePath.startsWith(clientDir)) return false;
 
+  let resolvedFilePath = filePath;
+
   try {
-    const fileStats = await stat(filePath);
+    const fileStats = await stat(resolvedFilePath);
     if (!fileStats.isFile()) return false;
 
     res.statusCode = 200;
-    res.setHeader("content-type", getContentType(filePath));
+    res.setHeader("content-type", getContentType(resolvedFilePath));
     res.setHeader("cache-control", "public, max-age=31536000, immutable");
 
     if (req.method === "HEAD") {
@@ -57,10 +79,32 @@ async function tryServeStatic(req, res) {
       return true;
     }
 
-    createReadStream(filePath).pipe(res);
+    createReadStream(resolvedFilePath).pipe(res);
     return true;
   } catch {
-    return false;
+    const fallbackPath = await resolveAssetFallback(pathname);
+    if (!fallbackPath) return false;
+
+    resolvedFilePath = fallbackPath;
+
+    try {
+      const fallbackStats = await stat(resolvedFilePath);
+      if (!fallbackStats.isFile()) return false;
+
+      res.statusCode = 200;
+      res.setHeader("content-type", getContentType(resolvedFilePath));
+      res.setHeader("cache-control", "public, max-age=31536000, immutable");
+
+      if (req.method === "HEAD") {
+        res.end();
+        return true;
+      }
+
+      createReadStream(resolvedFilePath).pipe(res);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
