@@ -26,6 +26,7 @@ COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.ya
 COPY --from=builder /app/packages/ ./packages/
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
+RUN rm -rf /etc/nginx/http.d/*
 COPY --from=builder /app/apps/web/nginx.conf /etc/nginx/http.d/default.conf
 COPY --from=builder /app/apps/web/entrypoint.sh /app/entrypoint.sh
 
