@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import SignInForm from "@/components/sign-in-form";
@@ -36,6 +36,15 @@ function RouteComponent() {
         ) : (
           <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
         )}
+
+        <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
+          <Link
+            to="/setup-admin"
+            className="text-xs text-slate-500 transition-colors hover:text-emerald-400"
+          >
+            Configurar administrador inicial
+          </Link>
+        </div>
       </div>
     </div>
   );

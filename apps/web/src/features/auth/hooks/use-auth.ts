@@ -3,6 +3,23 @@ import { authClient } from "@/lib/auth-client";
 import { apiClient } from "@/lib/api-client";
 import type { UserMetadataResponse, UserRole } from "../types";
 
+/**
+ * Normaliza el rol devuelto por el backend ("Administrador" | "Supervisor" | "Mecánico")
+ * a las claves usadas en el frontend ("ADMINISTRADOR" | "SUPERVISOR" | "MECANICO"),
+ * quitando acentos y pasando a mayúsculas.
+ */
+function normalizeRole(rawRole: string | null | undefined): UserRole | null {
+  if (!rawRole) return null;
+  const normalized = rawRole
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase();
+  if (normalized === "ADMINISTRADOR" || normalized === "SUPERVISOR" || normalized === "MECANICO") {
+    return normalized as UserRole;
+  }
+  return null;
+}
+
 export function useAuth() {
   // 1. Obtener la sesión activa de Better Auth
   const { data: sessionData, isPending: sessionPending, error: sessionError } = authClient.useSession();
@@ -37,7 +54,7 @@ export function useAuth() {
   });
 
   const isLoading = sessionPending || (isAuthenticated && metadataPending);
-  const role: UserRole | null = metadata?.role || null;
+  const role: UserRole | null = normalizeRole(metadata?.role);
 
   return {
     user: sessionData?.user || null,

@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate } from "@tanstack/react-router";
-import { getUser } from "@/functions/get-user";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@mantainer-system/ui/components/button";
@@ -29,15 +28,14 @@ import NotificationCenter from "@/features/alertas/components/notification-cente
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
-    const session = await getUser();
-    return { session };
-  },
-  loader: async ({ context }) => {
-    if (!context.session) {
+    // Verificación de sesión del lado del cliente (SPA estático, sin server functions)
+    const { data: session } = await authClient.getSession();
+    if (!session) {
       throw redirect({
         to: "/login",
       });
     }
+    return { session };
   },
   component: AuthenticatedLayout,
 });
