@@ -1,0 +1,31 @@
+flowchart TD
+    Login["/login<br/>Inicio de Sesión"]
+    Dashboard["/dashboard<br/>Panel Principal"]
+    MaquinariaList["/maquinaria<br/>Catálogo de Maquinaria"]
+    MaquinariaNueva["/maquinaria/nueva<br/>Registrar Máquina"]
+    MaquinariaFicha["/maquinaria/$id<br/>Ficha de Máquina"]
+    MantenimientoList["/mantenimiento<br/>Órdenes (Kanban)"]
+    MantenimientoExec["/mantenimiento/$id<br/>Ejecución de OT"]
+    Repuestos["/repuestos<br/>Inventario de Repuestos"]
+    Reportes["/reportes<br/>Reportes y Costos"]
+    Auditoria["/auditoria<br/>Bitácora de Auditoría"]
+
+    Login -->|Autenticación exitosa| Dashboard
+
+    Dashboard --> MaquinariaList
+    Dashboard --> MantenimientoList
+    Dashboard --> Repuestos
+    Dashboard --> Reportes
+    Dashboard --> Auditoria
+
+    MaquinariaList --> MaquinariaNueva
+    MaquinariaList --> MaquinariaFicha
+
+    MantenimientoList --> MantenimientoExec
+    MaquinariaFicha --> MantenimientoExec
+
+    Repuestos -.->|Solo Admin/Supervisor| Dashboard
+    Reportes -.->|Solo Admin/Supervisor| Dashboard
+    Auditoria -.->|Solo Admin| Dashboard
+
+    MaquinariaNueva -.->|Solo Admin/Supervisor| MaquinariaList

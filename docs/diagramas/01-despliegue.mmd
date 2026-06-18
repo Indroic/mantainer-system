@@ -1,0 +1,50 @@
+%% Diagrama de Despliegue — SGMM
+%% Topología basada en los docker-compose.*.yml
+flowchart TB
+    subgraph Cliente["🖥️ Navegador del Usuario"]
+        Browser["SPA (TanStack Start)"]
+    end
+
+    subgraph Host["🐳 Host Docker — red: dokploy-network"]
+        direction TB
+
+        subgraph WebNode["Contenedor: web"]
+            WebApp["Frontend Web<br/>Vite / TanStack Start<br/>:3000 (prod) · :80 (dev)<br/>VITE_API_URL · VITE_AUTH_URL"]
+        end
+
+        subgraph AuthNode["Contenedor: auth-server"]
+            AuthApp["Node.js — Hono<br/>Better Auth + tRPC + JWT<br/>:3000<br/>/api/auth/* · /trpc/* · /api/auth/jwks"]
+        end
+
+        subgraph ApiNode["Contenedor: backend"]
+            ApiApp["Python — FastAPI + HexCore<br/>API REST de negocio<br/>:8000<br/>/api/*"]
+        end
+
+        subgraph DbNode["Contenedor: postgres (postgres:15-alpine)"]
+            Pg[("PostgreSQL<br/>sgmm_auth_db<br/>:5432")]
+        end
+
+        subgraph SqliteVol["Volumen: sgmm_db_dev_data (solo dev)"]
+            Sqlite[("SQLite<br/>/app/data/sgmm.db")]
+        end
+
+        subgraph Migrations["Jobs de migración (run-once)"]
+            DrizzleMig["auth-migrate<br/>Drizzle Kit"]
+            AlembicMig["backend-migrate<br/>Alembic"]
+        end
+    end
+
+    Browser -->|HTTPS| WebApp
+    Browser -->|"HTTPS · /api/auth/* · /trpc/*"| AuthApp
+    Browser -->|"HTTPS · Bearer JWT · /api/*"| ApiApp
+
+    WebApp -.->|SSR fetch| AuthApp
+    WebApp -.->|SSR fetch| ApiApp
+
+    AuthApp -->|"SQL (drizzle-orm/node-postgres)"| Pg
+    ApiApp -->|"validación JWT (JWKS RS256)"| AuthApp
+    ApiApp -->|"SQLAlchemy asyncpg (prod)"| Pg
+    ApiApp -.->|"SQLAlchemy aiosqlite (dev)"| Sqlite
+
+    DrizzleMig -->|migra esquema auth| Pg
+    AlembicMig -->|migra esquema negocio| Pg

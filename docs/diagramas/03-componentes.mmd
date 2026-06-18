@@ -1,0 +1,71 @@
+%% Diagrama de Componentes — SGMM
+flowchart TB
+    subgraph Frontend["Frontend — apps/web"]
+        UI["UI / Páginas (TanStack Start)"]
+        TRPCClient["Cliente tRPC + Better Auth client"]
+    end
+
+    subgraph Server["Auth Server — apps/server (Hono)"]
+        Hono["app Hono<br/>CORS · logger"]
+        BetterAuth["Better Auth<br/>emailAndPassword · jwt()"]
+        TRPCRouter["appRouter (tRPC)<br/>healthCheck · privateData"]
+        JWKS["Endpoint JWKS<br/>/api/auth/jwks"]
+        DrizzleAdapter["Drizzle Adapter (pg)"]
+    end
+
+    subgraph Backend["API de Negocio — apps/backend (FastAPI + HexCore)"]
+        direction TB
+        MainApp["FastAPI app<br/>CORS · exception_handler"]
+
+        subgraph AuthDep["Componente transversal: auth"]
+            JwtHelper["jwt_helper<br/>PyJWKClient (RS256)"]
+            Deps["dependencies<br/>get_current_user_id<br/>require_roles()"]
+        end
+
+        subgraph Slices["Vertical Slices"]
+            UserS["user"]
+            MachineS["machine"]
+            InventoryS["inventory"]
+            MaintenanceS["maintenance"]
+            AlertsS["alerts"]
+            AuditS["audit"]
+            ReportsS["reports"]
+        end
+
+        subgraph SharedInfra["shared / HexCore"]
+            UoW["SqlAlchemyUnitOfWork<br/>get_uow()"]
+            Repos["BaseRepository<br/>(SQLAlchemyCommonImpl)"]
+            Config["LazyConfig / ProjectConfig"]
+            Events["InMemoryEventDispatcher<br/>MemoryCache"]
+        end
+    end
+
+    DBpg[("PostgreSQL<br/>(auth + negocio en prod)")]
+    DBsqlite[("SQLite (dev)")]
+
+    %% Frontend ↔ Server / Backend
+    UI --> TRPCClient
+    TRPCClient -->|"/trpc/* · /api/auth/*"| Hono
+    UI -->|"REST /api/* + Bearer JWT"| MainApp
+
+    %% Server interno
+    Hono --> BetterAuth
+    Hono --> TRPCRouter
+    BetterAuth --> JWKS
+    BetterAuth --> DrizzleAdapter
+    TRPCRouter -->|getSession| BetterAuth
+    DrizzleAdapter --> DBpg
+
+    %% Backend interno
+    MainApp --> Slices
+    Slices --> Deps
+    Deps --> JwtHelper
+    JwtHelper -->|"descarga claves públicas"| JWKS
+    Deps -->|valida rol| UserS
+    Slices --> UoW
+    Slices --> Repos
+    UoW --> Repos
+    Repos --> DBpg
+    Repos -.-> DBsqlite
+    Slices --> Config
+    UoW --> Events

@@ -1,0 +1,49 @@
+%% Diagrama de Comunicación — SGMM
+%% Flujo: PUT /api/maintenance/liquidate (autenticado + autorizado por rol)
+sequenceDiagram
+    autonumber
+    actor User as Supervisor / Mecánico
+    participant Web as Frontend (web)
+    participant Auth as auth-server (Better Auth)
+    participant API as backend (FastAPI)
+    participant Dep as auth.dependencies
+    participant UC as LiquidateMaintenanceUseCase
+    participant Svc as MaintenanceDomainService
+    participant UoW as SqlAlchemyUnitOfWork
+    participant DB as Base de Datos
+
+    User->>Web: Inicia sesión
+    Web->>Auth: POST /api/auth/* (credenciales)
+    Auth-->>Web: Sesión + JWT (RS256)
+
+    User->>Web: "Liquidar OT"
+    Web->>API: PUT /api/maintenance/liquidate (Bearer JWT)
+
+    API->>Dep: get_current_user_id()
+    Dep->>Auth: GET /api/auth/jwks (claves públicas)
+    Auth-->>Dep: JWKS
+    Dep->>Dep: jwt.decode(RS256) → better_auth_user_id
+    Dep->>API: require_roles([ADMIN, SUPERVISOR, MECANICO])
+    API->>UoW: get_uow() (UserRepository) → role OK
+
+    API->>UC: execute(LiquidateMaintenanceCommand)
+    activate UC
+    UC->>UoW: async with uow (inicia transacción)
+    UC->>Svc: liquidate_order(order_id)
+    activate Svc
+    Svc->>DB: get_by_id(order) / get_by_id(machine)
+    Svc->>Svc: order.liquidate(horometer) → +250h
+    loop por cada repuesto
+        Svc->>DB: get_by_id(spare_part)
+        Svc->>Svc: set_unit_cost() + decrease_stock()
+        Svc->>UoW: save(spare_part)
+    end
+    Svc->>Svc: machine.change_status(ACTIVA)
+    Svc->>UoW: save(machine), save(order)
+    deactivate Svc
+    UC->>UoW: save(AuditLog "LIQUIDATE")
+    UC->>UoW: commit() (ACID + dispatch eventos)
+    UoW->>DB: COMMIT
+    deactivate UC
+    API-->>Web: 200 MaintenanceResponse
+    Web-->>User: OT liquidada

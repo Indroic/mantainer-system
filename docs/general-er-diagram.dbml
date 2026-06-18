@@ -1,0 +1,105 @@
+// ============================================================
+// Diagrama Entidad-Relación General — SGMM
+// Vista de alto nivel con tablas principales
+// ============================================================
+
+Table area_trabajo {
+  id UUID [pk]
+  nombre VARCHAR
+}
+
+Table maquina {
+  id UUID [pk]
+  codigo VARCHAR [unique]
+  serie_motor VARCHAR [unique]
+  status VARCHAR
+  area_id UUID [ref: > area_trabajo.id]
+}
+
+Table especializacion {
+  id UUID [pk]
+  nombre VARCHAR
+}
+
+Table usuario {
+  id UUID [pk]
+  auth_id VARCHAR [unique]
+  rol VARCHAR
+  tarifa_hora FLOAT
+  especialidad_id UUID [ref: > especializacion.id]
+}
+
+Table tipo_mantenimiento {
+  id UUID [pk]
+  nombre VARCHAR
+}
+
+Table orden_mantenimiento {
+  id UUID [pk]
+  descripcion VARCHAR
+  status VARCHAR
+  horas FLOAT
+  costo_mano_obra FLOAT
+  maquina_id UUID [ref: > maquina.id]
+  mecanico_id UUID [ref: > usuario.id]
+  tipo_id UUID [ref: > tipo_mantenimiento.id]
+}
+
+Table categoria_repuesto {
+  id UUID [pk]
+  nombre VARCHAR
+}
+
+Table repuesto {
+  id UUID [pk]
+  codigo VARCHAR [unique]
+  nombre VARCHAR
+  stock_actual INT
+  stock_minimo INT
+  costo_unitario FLOAT
+  categoria_id UUID [ref: > categoria_repuesto.id]
+}
+
+Table detalle_repuesto_ot {
+  id UUID [pk]
+  cantidad_solicitada INT
+  cantidad_usada INT
+  costo_momento FLOAT
+  orden_id UUID [ref: > orden_mantenimiento.id]
+  repuesto_id UUID [ref: > repuesto.id]
+}
+
+Table plan_mantenimiento {
+  id UUID [pk]
+  descripcion VARCHAR
+  frecuencia_horas INT
+  maquina_id UUID [ref: > maquina.id]
+  tipo_id UUID [ref: > tipo_mantenimiento.id]
+}
+
+Table alerta {
+  id UUID [pk]
+  tipo VARCHAR
+  mensaje VARCHAR
+  resuelta BOOLEAN
+  maquina_id UUID [ref: > maquina.id]
+  repuesto_id UUID [ref: > repuesto.id]
+  resuelto_por UUID [ref: > usuario.id]
+}
+
+Table solicitud_compra {
+  id UUID [pk]
+  cantidad INT
+  status VARCHAR
+  repuesto_id UUID [ref: > repuesto.id]
+  solicitante_id UUID [ref: > usuario.id]
+  aprobador_id UUID [ref: > usuario.id]
+}
+
+Table bitacora_auditoria {
+  id UUID [pk]
+  entidad VARCHAR
+  accion VARCHAR
+  payload TEXT
+  usuario VARCHAR
+}

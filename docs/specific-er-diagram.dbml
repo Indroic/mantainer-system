@@ -1,0 +1,171 @@
+// ============================================================
+// Diagrama Entidad-Relación Específico - SGMM
+// Motor: SQLAlchemy (SQLite / PostgreSQL)
+// Normalizado hasta 3FN
+// ============================================================
+
+Table work_areas {
+  id UUID [pk]
+  name VARCHAR(100) [not null]
+  description VARCHAR(255)
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table specializations {
+  id UUID [pk]
+  name VARCHAR(100) [not null]
+  description VARCHAR(255)
+  is_active BOOLEAN [default: true]
+}
+
+Table spare_part_categories {
+  id UUID [pk]
+  name VARCHAR(100) [not null]
+  description VARCHAR(255)
+  is_active BOOLEAN [default: true]
+}
+
+Table maintenance_types {
+  id UUID [pk]
+  name VARCHAR(100) [not null]
+  description VARCHAR(255)
+  is_active BOOLEAN [default: true]
+}
+
+Table machines {
+  id UUID [pk]
+  code VARCHAR(50) [not null, unique]
+  motor_serial VARCHAR(100) [not null, unique]
+  brand VARCHAR(100) [not null]
+  model VARCHAR(100) [not null]
+  manufacture_year INTEGER [not null]
+  current_horometer FLOAT [not null]
+  status VARCHAR(50) [not null] // ACTIVA | EN_MANTENIMIENTO | FUERA_DE_SERVICIO
+  work_area_id UUID [ref: > work_areas.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table user_metadata {
+  id UUID [pk]
+  better_auth_user_id VARCHAR(255) [not null, unique]
+  role VARCHAR(50) [not null] // ADMIN | SUPERVISOR | MECANICO
+  hourly_rate FLOAT [not null]
+  specialization_id UUID [ref: > specializations.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table maintenance_orders {
+  id UUID [pk]
+  description VARCHAR(255) [not null]
+  status VARCHAR(50) [not null] // PROGRAMADO | EN_EJECUCION | COMPLETADO | CANCELADO
+  hours_worked FLOAT [not null]
+  labor_cost FLOAT [not null]
+  next_service_horometer FLOAT
+  machine_id UUID [ref: > machines.id, not null]
+  assigned_mechanic_id UUID [ref: > user_metadata.id, not null]
+  maintenance_type_id UUID [ref: > maintenance_types.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table spare_parts {
+  id UUID [pk]
+  code VARCHAR(50) [not null, unique]
+  name VARCHAR(100) [not null]
+  stock_current INTEGER [not null]
+  stock_minimum INTEGER [not null]
+  unit_cost FLOAT [not null]
+  category_id UUID [ref: > spare_part_categories.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table maintenance_spare_parts {
+  id UUID [pk]
+  maintenance_order_id UUID [ref: > maintenance_orders.id, not null]
+  spare_part_id UUID [ref: > spare_parts.id, not null]
+  quantity_requested INTEGER [not null]
+  quantity_used INTEGER
+  unit_cost_at_time FLOAT
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table maintenance_plans {
+  id UUID [pk]
+  description VARCHAR(255) [not null]
+  frequency_hours INTEGER [not null]
+  estimated_duration_hours FLOAT
+  machine_id UUID [ref: > machines.id, not null]
+  maintenance_type_id UUID [ref: > maintenance_types.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table alerts {
+  id UUID [pk]
+  type VARCHAR(50) [not null] // LOW_STOCK | MAINTENANCE_DUE | BREAKDOWN
+  message VARCHAR(255) [not null]
+  is_resolved BOOLEAN [default: false]
+  machine_id UUID [ref: > machines.id]
+  spare_part_id UUID [ref: > spare_parts.id]
+  resolved_by UUID [ref: > user_metadata.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table purchase_requests {
+  id UUID [pk]
+  quantity_requested INTEGER [not null]
+  status VARCHAR(50) [not null] // PENDIENTE | APROBADO | RECHAZADO | COMPLETADO
+  spare_part_id UUID [ref: > spare_parts.id, not null]
+  requested_by UUID [ref: > user_metadata.id, not null]
+  approved_by UUID [ref: > user_metadata.id]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+Table audit_logs {
+  id UUID [pk]
+  entity_name VARCHAR(100) [not null]
+  entity_id VARCHAR(36) [not null]
+  action VARCHAR(50) [not null] // CREATE | UPDATE | DELETE
+  payload TEXT [not null]
+  performed_by VARCHAR(255) [not null]
+  is_active BOOLEAN [default: true]
+  created_at TIMESTAMP [not null]
+  updated_at TIMESTAMP [not null]
+}
+
+// ============================================================
+// Relaciones
+// ============================================================
+
+Ref: machines.work_area_id > work_areas.id
+Ref: user_metadata.specialization_id > specializations.id
+Ref: spare_parts.category_id > spare_part_categories.id
+Ref: maintenance_orders.machine_id > machines.id
+Ref: maintenance_orders.assigned_mechanic_id > user_metadata.id
+Ref: maintenance_orders.maintenance_type_id > maintenance_types.id
+Ref: maintenance_spare_parts.maintenance_order_id > maintenance_orders.id
+Ref: maintenance_spare_parts.spare_part_id > spare_parts.id
+Ref: maintenance_plans.machine_id > machines.id
+Ref: maintenance_plans.maintenance_type_id > maintenance_types.id
+Ref: alerts.machine_id > machines.id
+Ref: alerts.spare_part_id > spare_parts.id
+Ref: alerts.resolved_by > user_metadata.id
+Ref: purchase_requests.spare_part_id > spare_parts.id
+Ref: purchase_requests.requested_by > user_metadata.id
+Ref: purchase_requests.approved_by > user_metadata.id

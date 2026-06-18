@@ -1,0 +1,166 @@
+%% Diagrama de Clases — SGMM (backend HexCore, slice Maintenance como ejemplo)
+classDiagram
+    direction TB
+
+    %% ===== Framework HexCore =====
+    class BaseEntity {
+        +UUID id
+        +datetime created_at
+        +datetime updated_at
+        +bool is_active
+    }
+    class BaseDomainService
+    class SQLAlchemyCommonImplementationsRepo~E, M~ {
+        +get_by_id(id)
+        +list_all()
+        +save(entity)
+        +delete(id)
+    }
+    class UseCase~T, R~ {
+        +execute(command: T) R
+    }
+    class SqlAlchemyUnitOfWork {
+        +commit()
+        +rollback()
+        +collect_entity()
+    }
+    class QueryEntitiesUseCase~E~
+
+    %% ===== Dominio: Entidades =====
+    class MaintenanceOrder {
+        +UUID machine_id
+        +str description
+        +MaintenanceStatus status
+        +UUID assigned_mechanic_id
+        +float next_service_horometer
+        +list~MaintenanceSparePart~ spare_parts
+        +start_execution()
+        +add_spare_part(spare_part_id, qty)
+        +liquidate(current_horometer)
+    }
+    class MaintenanceSparePart {
+        +UUID maintenance_order_id
+        +UUID spare_part_id
+        +int quantity_requested
+        +float unit_cost_at_time
+        +set_unit_cost(cost)
+    }
+    class Machine {
+        +str code
+        +str motor_serial
+        +str brand
+        +str model
+        +int manufacture_year
+        +float current_horometer
+        +MachineStatus status
+        +update_horometer(value)
+        +change_status(status)
+        +soft_delete()
+    }
+    class SparePart {
+        +str code
+        +str name
+        +int stock_current
+        +int stock_minimum
+        +float unit_cost
+        +update_stock(n)
+        +decrease_stock(qty)
+        +increase_stock(qty)
+        +soft_delete()
+    }
+    class UserMetadata {
+        +str better_auth_user_id
+        +UserRole role
+        +float hourly_rate
+        +update_metadata(role, rate)
+    }
+    class Alert {
+        +UUID machine_id
+        +UUID spare_part_id
+        +AlertType type
+        +str message
+        +bool is_resolved
+        +resolve()
+    }
+    class AuditLog {
+        +str entity_name
+        +UUID entity_id
+        +str action
+        +str payload
+        +str performed_by
+    }
+
+    %% ===== Enums =====
+    class MaintenanceStatus {
+        <<enum>>
+        PROGRAMADO
+        EN_EJECUCION
+        LIQUIDADO
+    }
+    class MachineStatus {
+        <<enum>>
+        ACTIVA
+        EN_MANTENIMIENTO
+        FUERA_DE_SERVICIO
+        DADA_DE_BAJA
+    }
+    class UserRole {
+        <<enum>>
+        ADMINISTRADOR
+        SUPERVISOR
+        MECANICO
+    }
+    class AlertType {
+        <<enum>>
+        MAINTENANCE_DUE
+        LOW_STOCK
+    }
+
+    %% ===== Aplicación / Infra (slice Maintenance) =====
+    class MaintenanceDomainService {
+        +create_order(...)
+        +start_execution(id)
+        +add_spare_part(...)
+        +liquidate_order(id)
+    }
+    class CreateMaintenanceUseCase
+    class StartMaintenanceUseCase
+    class AddSparePartToOrderUseCase
+    class LiquidateMaintenanceUseCase
+    class QueryMaintenanceOrdersUseCase
+    class MaintenanceOrderRepository
+
+    %% ===== Herencia (HexCore) =====
+    BaseEntity <|-- MaintenanceOrder
+    BaseEntity <|-- MaintenanceSparePart
+    BaseEntity <|-- Machine
+    BaseEntity <|-- SparePart
+    BaseEntity <|-- UserMetadata
+    BaseEntity <|-- Alert
+    BaseEntity <|-- AuditLog
+
+    BaseDomainService <|-- MaintenanceDomainService
+    SQLAlchemyCommonImplementationsRepo <|-- MaintenanceOrderRepository
+    UseCase <|-- CreateMaintenanceUseCase
+    UseCase <|-- StartMaintenanceUseCase
+    UseCase <|-- AddSparePartToOrderUseCase
+    UseCase <|-- LiquidateMaintenanceUseCase
+    QueryEntitiesUseCase <|-- QueryMaintenanceOrdersUseCase
+
+    %% ===== Composición / Asociaciones =====
+    MaintenanceOrder "1" *-- "0..*" MaintenanceSparePart : spare_parts
+    MaintenanceOrder ..> MaintenanceStatus
+    Machine ..> MachineStatus
+    UserMetadata ..> UserRole
+    Alert ..> AlertType
+
+    %% ===== Dependencias entre capas =====
+    CreateMaintenanceUseCase --> MaintenanceDomainService : delega
+    LiquidateMaintenanceUseCase --> MaintenanceDomainService : delega
+    CreateMaintenanceUseCase --> SqlAlchemyUnitOfWork : async with uow
+    LiquidateMaintenanceUseCase --> SqlAlchemyUnitOfWork : async with uow
+    MaintenanceDomainService --> MaintenanceOrderRepository : usa
+    MaintenanceDomainService ..> Machine : valida estado
+    MaintenanceDomainService ..> SparePart : descuenta stock
+    MaintenanceOrderRepository --> MaintenanceOrder : entity_cls
+    QueryMaintenanceOrdersUseCase --> MaintenanceOrderRepository : inyecta (excepción query)

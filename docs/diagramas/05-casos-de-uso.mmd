@@ -1,0 +1,72 @@
+%% Diagrama de Casos de Uso — SGMM
+%% Autorización derivada de require_roles(...) en cada router de slice
+flowchart LR
+    Admin(("👤 Administrador"))
+    Super(("👤 Supervisor"))
+    Mec(("👤 Mecánico"))
+    AuthSys["⚙️ Better Auth<br/>(actor sistema)"]
+
+    subgraph SGMM["Sistema SGMM"]
+        direction TB
+
+        subgraph UCuser["Usuarios"]
+            U1(["Registrar/actualizar metadata de usuario"])
+            U2(["Consultar metadata propia"])
+        end
+        subgraph UCmachine["Máquinas"]
+            M1(["Crear máquina"])
+            M2(["Actualizar horómetro"])
+            M3(["Cambiar estado"])
+            M4(["Dar de baja (soft delete)"])
+            M5(["Consultar / filtrar máquinas"])
+        end
+        subgraph UCinv["Inventario"]
+            I1(["Crear repuesto"])
+            I2(["Actualizar stock"])
+            I3(["Dar de baja repuesto"])
+            I4(["Consultar repuestos"])
+        end
+        subgraph UCmant["Mantenimiento"]
+            T1(["Crear orden de trabajo"])
+            T2(["Iniciar ejecución"])
+            T3(["Agregar repuesto a OT"])
+            T4(["Liquidar OT"])
+            T5(["Consultar órdenes"])
+        end
+        subgraph UCal["Alertas"]
+            A1(["Generar alertas (stock/mant.)"])
+            A2(["Resolver alerta"])
+            A3(["Consultar alertas"])
+        end
+        subgraph UCrep["Reportes y Auditoría"]
+            R1(["Reporte de costos"])
+            R2(["Historial técnico"])
+            R3(["Consultar logs de auditoría"])
+        end
+    end
+
+    %% Autenticación
+    Admin -. "se autentica" .-> AuthSys
+    Super -. "se autentica" .-> AuthSys
+    Mec -. "se autentica" .-> AuthSys
+
+    %% Administrador (acceso total)
+    Admin --> U1 & U2
+    Admin --> M1 & M2 & M3 & M4 & M5
+    Admin --> I1 & I2 & I3 & I4
+    Admin --> T1 & T2 & T3 & T4 & T5
+    Admin --> A1 & A2 & A3
+    Admin --> R1 & R2 & R3
+
+    %% Supervisor
+    Super --> M1 & M2 & M3 & M5
+    Super --> I1 & I2 & I4
+    Super --> T1 & T2 & T3 & T4 & T5
+    Super --> A2 & A3
+    Super --> R1 & R2
+
+    %% Mecánico
+    Mec --> M2 & M5
+    Mec --> I4
+    Mec --> T2 & T3 & T4 & T5
+    Mec --> A3
