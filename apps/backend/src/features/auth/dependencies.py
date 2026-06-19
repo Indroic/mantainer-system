@@ -1,51 +1,69 @@
+import unicodedata
 from collections.abc import Callable
+from dataclasses import dataclass
+
 from fastapi import Depends, Header, HTTPException, status
-from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.jwt_helper import decode_better_auth_jwt
-from src.features.user.application.dtos import UserMetadataResponse
-from src.features.user.application.use_cases.get_user_metadata import (
-    GetUserMetadataByBetterAuthIdUseCase,
-)
 from src.features.user.domain.entities import UserRole
-from src.features.user.domain.exceptions import UserMetadataNotFoundException
-from src.features.user.domain.services import UserMetadataDomainService
-from src.features.user.infrastructure.repositories import UserRepository
-from src.shared.infrastructure.database.db import get_uow
 
 
-def get_current_user_id(authorization: str = Header(..., description="Bearer token JWT")) -> str:
-    """Extrae y valida el JWT de Better Auth para obtener el ID de usuario."""
+@dataclass
+class CurrentUser:
+    """Usuario autenticado derivado del JWT de Better Auth (incluye el rol del plugin admin)."""
+
+    better_auth_user_id: str
+    role: UserRole | None = None
+    email: str | None = None
+    name: str | None = None
+
+
+def _parse_role(raw: str | None) -> UserRole | None:
+    """Normaliza el rol del JWT (acentos/mayúsculas) a un UserRole del dominio."""
+    if not raw:
+        return None
+    normalized = "".join(
+        c for c in unicodedata.normalize("NFD", str(raw)) if unicodedata.category(c) != "Mn"
+    ).upper()
+    mapping = {
+        "ADMINISTRADOR": UserRole.ADMINISTRADOR,
+        "SUPERVISOR": UserRole.SUPERVISOR,
+        "MECANICO": UserRole.MECANICO,
+    }
+    return mapping.get(normalized)
+
+
+def _token_from_header(authorization: str) -> str:
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Formato de cabecera de autorización inválido. Debe ser 'Bearer <token>'.",
         )
-    token = authorization.split(" ")[1]
-    payload = decode_better_auth_jwt(token)
-    return payload["better_auth_user_id"]
+    return authorization.split(" ")[1]
 
 
-async def get_current_user_metadata(
-    better_auth_user_id: str = Depends(get_current_user_id),
-    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-) -> UserMetadataResponse:
-    """Obtiene la metadata local del usuario autenticado por Better Auth."""
-    repo = UserRepository(uow)
-    service = UserMetadataDomainService(repo)
-    use_case = GetUserMetadataByBetterAuthIdUseCase(service, uow)
-    try:
-        return await use_case.execute(better_auth_user_id)
-    except UserMetadataNotFoundException:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Metadata de usuario no registrada en el backend local. Contacte al administrador.",
-        )
+def get_current_user(
+    authorization: str = Header(..., description="Bearer token JWT"),
+) -> CurrentUser:
+    """Extrae y valida el JWT de Better Auth, devolviendo el usuario actual y su rol."""
+    token = _token_from_header(authorization)
+    claims = decode_better_auth_jwt(token)
+    return CurrentUser(
+        better_auth_user_id=claims["better_auth_user_id"],
+        role=_parse_role(claims.get("role")),
+        email=claims.get("email"),
+        name=claims.get("name"),
+    )
+
+
+def get_current_user_id(authorization: str = Header(..., description="Bearer token JWT")) -> str:
+    """Devuelve solo el ID de Better Auth del usuario autenticado."""
+    return get_current_user(authorization).better_auth_user_id
 
 
 def require_roles(allowed_roles: list[UserRole]) -> Callable:
-    """Generador de dependencias para validar que el usuario tenga un rol permitido."""
+    """Genera una dependencia que valida que el rol del JWT esté permitido."""
 
-    def dependency(user: UserMetadataResponse = Depends(get_current_user_metadata)) -> UserMetadataResponse:
+    def dependency(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         if user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

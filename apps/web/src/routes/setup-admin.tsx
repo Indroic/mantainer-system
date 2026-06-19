@@ -7,8 +7,10 @@ import { ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import z from "zod";
 
-import { apiClient } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
+
+// URL HARDCODEADA del servidor de Better Auth (donde vive /create-admin).
+const AUTH_URL = "https://authsgmm.indroic.dev";
 
 export const Route = createFileRoute("/setup-admin")({
   component: SetupAdminComponent,
@@ -23,43 +25,49 @@ function SetupAdminComponent() {
       name: "",
       email: "",
       password: "",
-      hourly_rate: 0,
     },
     onSubmit: async ({ value }) => {
-      // 1. Crear la cuenta en Better Auth (auto inicia sesión).
-      const { data, error: signUpError } = await authClient.signUp.email({
+      // 1. Crear el usuario Administrador en Better Auth (gateado por la clave).
+      let res: Response;
+      try {
+        res = await fetch(`${AUTH_URL}/create-admin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creation_key: value.creation_key,
+            name: value.name,
+            email: value.email,
+            password: value.password,
+          }),
+        });
+      } catch {
+        toast.error("No se pudo contactar al servidor de autenticación");
+        return;
+      }
+
+      if (res.status === 403) {
+        toast.error("Clave de creación inválida");
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}) as { error?: string });
+        toast.error(data.error || "No se pudo crear el administrador");
+        return;
+      }
+
+      // 2. Iniciar sesión para establecer la sesión en el navegador.
+      const { error: signInError } = await authClient.signIn.email({
         email: value.email,
         password: value.password,
-        name: value.name,
       });
-
-      if (signUpError) {
-        toast.error(signUpError.message || "No se pudo crear la cuenta");
+      if (signInError) {
+        toast.success("Administrador creado. Inicia sesión.");
+        navigate({ to: "/login" });
         return;
       }
 
-      const betterAuthUserId = data?.user?.id;
-      if (!betterAuthUserId) {
-        toast.error("No se pudo obtener el ID del usuario recién creado");
-        return;
-      }
-
-      // 2. Promover a Administrador validando la clave de creación (sin JWT).
-      try {
-        await apiClient.post("/user-metadata/create-admin", {
-          better_auth_user_id: betterAuthUserId,
-          hourly_rate: value.hourly_rate,
-          creation_key: value.creation_key,
-        });
-        toast.success("Administrador creado correctamente");
-        navigate({ to: "/dashboard" });
-      } catch (err: any) {
-        if (err?.status === 403) {
-          toast.error("Clave de creación inválida");
-          return;
-        }
-        toast.error(err?.message || "No se pudo asignar el rol de administrador");
-      }
+      toast.success("Administrador creado correctamente");
+      navigate({ to: "/dashboard" });
     },
     validators: {
       onSubmit: z.object({
@@ -67,7 +75,6 @@ function SetupAdminComponent() {
         name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
         email: z.email("Correo electrónico inválido"),
         password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-        hourly_rate: z.number().min(0, "La tarifa no puede ser negativa"),
       }),
     },
   });
@@ -172,29 +179,6 @@ function SetupAdminComponent() {
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-sm text-rose-400">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
-
-          <form.Field name="hourly_rate">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Tarifa por hora (opcional)</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(Number(e.target.value))}
                 />
                 {field.state.meta.errors.map((error) => (
                   <p key={error?.message} className="text-sm text-rose-400">

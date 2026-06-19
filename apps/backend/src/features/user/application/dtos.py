@@ -11,14 +11,6 @@ class CreateOrUpdateUserMetadataCommand(DTO):
     performed_by: str | None = None
 
 
-class CreateAdminCommand(DTO):
-    """Comando para crear un Administrador validando una clave de creación estática."""
-
-    better_auth_user_id: str
-    hourly_rate: float = 0.0
-    creation_key: str
-
-
 class UserMetadataResponse(DTO):
     id: UUID
     better_auth_user_id: str

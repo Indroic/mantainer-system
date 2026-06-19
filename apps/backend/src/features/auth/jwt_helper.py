@@ -60,11 +60,14 @@ def decode_better_auth_jwt(token: str) -> dict:
                 detail="Token JWT inválido: Falta el ID del usuario (sub/id).",
             )
 
+        nested_user = payload.get("user", {}) if isinstance(payload.get("user"), dict) else {}
+
         return {
             "better_auth_user_id": str(user_id),
-            "email": payload.get("email"),
-            "name": payload.get("name"),
-            "role": payload.get("role"),
+            "email": payload.get("email") or nested_user.get("email"),
+            "name": payload.get("name") or nested_user.get("name"),
+            # El rol proviene del plugin admin de Better Auth y viaja en el JWT.
+            "role": payload.get("role") or nested_user.get("role"),
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(

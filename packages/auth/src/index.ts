@@ -2,7 +2,7 @@ import { createDb } from "@mantainer-system/db";
 import * as schema from "@mantainer-system/db/schema/auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { jwt } from "better-auth/plugins";
+import { admin, jwt } from "better-auth/plugins";
 
 // =============================================================================
 // Configuración HARDCODEADA (no depende de variables de entorno).
@@ -48,7 +48,14 @@ export function createAuth() {
       },
     },
     plugins: [
-      jwt()
+      // El plugin admin añade el campo `role` al usuario (viaja en el JWT) y
+      // habilita la gestión de roles. Los roles de negocio se almacenan como
+      // texto: "Administrador" | "Supervisor" | "Mecánico".
+      admin({
+        adminRoles: ["Administrador"],
+        defaultRole: "Mecánico",
+      }),
+      jwt(),
     ],
   });
 }

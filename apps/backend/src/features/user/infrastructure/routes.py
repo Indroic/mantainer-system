@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import get_current_user_metadata, require_roles
+from src.features.auth.dependencies import CurrentUser, get_current_user, require_roles
 from src.features.user.application.dtos import (
-    CreateAdminCommand,
     CreateOrUpdateUserMetadataCommand,
     UserMetadataResponse,
 )
@@ -19,46 +18,16 @@ from src.shared.infrastructure.database.db import get_uow
 
 router = APIRouter(prefix="/user-metadata", tags=["User Metadata"])
 
-# =============================================================================
-# Clave de creación del administrador (HARDCODEADA).
-# Quien conozca esta clave puede crear un usuario con rol Administrador desde la
-# página pública /setup-admin, sin necesidad de un administrador previo ni JWT.
-# Cámbiala por una cadena privada antes de exponer el sistema en producción.
-# =============================================================================
-ADMIN_CREATION_KEY = "SGMM-CLAVE-ADMIN-2026"
 
-
-@router.post(
-    "/create-admin",
-    response_model=UserMetadataResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_admin(
-    command: CreateAdminCommand,
-    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-) -> UserMetadataResponse:
-    """Crea (o promueve) un usuario como Administrador validando la clave de creación.
-
-    Endpoint público gobernado por una clave estática (`ADMIN_CREATION_KEY`):
-    no requiere JWT ni un administrador previo. Devuelve HTTP 403 si la clave
-    es incorrecta.
-    """
-    if command.creation_key != ADMIN_CREATION_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Clave de creación inválida.",
-        )
-
-    repo = UserRepository(uow)
-    service = UserMetadataDomainService(repo)
-    use_case = CreateOrUpdateUserMetadataUseCase(service, uow)
-    inner = CreateOrUpdateUserMetadataCommand(
-        better_auth_user_id=command.better_auth_user_id,
-        role=UserRole.ADMINISTRADOR,
-        hourly_rate=command.hourly_rate,
-        performed_by="admin-setup",
-    )
-    return await use_case.execute(inner)
+@router.get("/me")
+async def get_me(current_user: CurrentUser = Depends(get_current_user)) -> dict:
+    """Devuelve el usuario autenticado y su rol, leídos del JWT de Better Auth."""
+    return {
+        "better_auth_user_id": current_user.better_auth_user_id,
+        "role": current_user.role.value if current_user.role else None,
+        "email": current_user.email,
+        "name": current_user.name,
+    }
 
 
 @router.post(
@@ -69,25 +38,17 @@ async def create_admin(
 async def create_or_update_metadata(
     command: CreateOrUpdateUserMetadataCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR])),
+    current_user: CurrentUser = Depends(require_roles([UserRole.ADMINISTRADOR])),
 ) -> UserMetadataResponse:
-    """Registra o actualiza la metadata local de un usuario (roles y tarifas horarias).
+    """Registra o actualiza metadata local de un usuario (p. ej. tarifa horaria).
 
-    Restringido al rol Administrador.
+    Restringido al rol Administrador. El rol del usuario se gestiona en Better Auth.
     """
     repo = UserRepository(uow)
     service = UserMetadataDomainService(repo)
     use_case = CreateOrUpdateUserMetadataUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
     return await use_case.execute(command)
-
-
-@router.get("/me", response_model=UserMetadataResponse)
-async def get_my_metadata(
-    current_user: UserMetadataResponse = Depends(get_current_user_metadata),
-) -> UserMetadataResponse:
-    """Obtiene la metadata local del usuario autenticado actual."""
-    return current_user
 
 
 @router.get(
