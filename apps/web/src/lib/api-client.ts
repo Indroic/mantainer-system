@@ -1,7 +1,7 @@
-import { env } from "@mantainer-system/env/web";
 import { authClient } from "./auth-client";
 
-const API_BASE_URL = env.VITE_API_URL;
+// URL HARDCODEADA del backend FastAPI.
+const API_BASE_URL = "https://apisgmm.indroic.dev";
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;

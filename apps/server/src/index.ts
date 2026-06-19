@@ -2,7 +2,6 @@ import { trpcServer } from "@hono/trpc-server";
 import { createContext } from "@mantainer-system/api/context";
 import { appRouter } from "@mantainer-system/api/routers/index";
 import { auth } from "@mantainer-system/auth";
-import { env } from "@mantainer-system/env/server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -11,15 +10,16 @@ const app = new Hono();
 
 app.use(logger());
 
-// CORS_ORIGIN admite uno o varios orígenes separados por coma.
-const allowedOrigins = env.CORS_ORIGIN.split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+// Orígenes permitidos HARDCODEADOS (origen de la web y del propio auth).
+const ALLOWED_ORIGINS = [
+  "https://sgmm.indroic.dev",
+  "https://authsgmm.indroic.dev",
+];
 
 app.use(
   "/*",
   cors({
-    origin: allowedOrigins,
+    origin: ALLOWED_ORIGINS,
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["Content-Length"],

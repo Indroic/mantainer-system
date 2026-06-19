@@ -1,5 +1,4 @@
 import type { AppRouter } from "@mantainer-system/api/routers/index";
-import { env } from "@mantainer-system/env/web";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
@@ -11,8 +10,8 @@ import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 import { TRPCProvider } from "./utils/trpc";
 
-// El router tRPC se sirve desde el servidor de Better Auth, no desde el origen de la web.
-const authBaseURL = env.VITE_AUTH_URL;
+// URL HARDCODEADA: el router tRPC se sirve desde el servidor de Better Auth.
+const authBaseURL = "https://authsgmm.indroic.dev";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({

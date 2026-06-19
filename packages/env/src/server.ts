@@ -4,14 +4,13 @@ import { z } from "zod";
 
 export const env = createEnv({
   server: {
+    // Única variable realmente requerida: la cadena de conexión a Postgres.
     DATABASE_URL: z.string().min(1),
-    BETTER_AUTH_SECRET: z.string().min(32),
-    // URL pública propia del servidor de Better Auth (p. ej. https://authsgmm.indroic.dev)
-    BETTER_AUTH_URL: z.url(),
-    // Origen(es) permitido(s) para CORS. Acepta varios separados por coma.
-    CORS_ORIGIN: z.string().min(1),
-    // Dominio compartido para cookies cross-subdominio (p. ej. .indroic.dev).
-    // Si se omite, las cookies quedan ligadas al host del servidor de auth.
+    // Las siguientes están HARDCODEADAS en packages/auth y apps/server, por lo que
+    // son opcionales aquí: su ausencia no debe impedir el arranque del servidor.
+    BETTER_AUTH_SECRET: z.string().optional(),
+    BETTER_AUTH_URL: z.string().optional(),
+    CORS_ORIGIN: z.string().optional(),
     COOKIE_DOMAIN: z.string().optional(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   },
