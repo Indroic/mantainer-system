@@ -46,13 +46,3 @@ class UserRepository(
         if model:
             return self.to_entity(model)
         return None
-
-    async def exists_any_admin(self) -> bool:
-        """Indica si ya existe al menos un usuario con rol Administrador."""
-        from src.features.user.domain.entities import UserRole
-
-        stmt = select(self.model_cls.id).where(
-            self.model_cls.role == UserRole.ADMINISTRADOR.value
-        )
-        result = await self.session.execute(stmt)
-        return result.first() is not None

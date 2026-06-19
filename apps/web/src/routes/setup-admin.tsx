@@ -2,32 +2,15 @@ import { Button } from "@mantainer-system/ui/components/button";
 import { Input } from "@mantainer-system/ui/components/input";
 import { Label } from "@mantainer-system/ui/components/label";
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import z from "zod";
 
-import { ApiError, apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/setup-admin")({
-  loader: async () => {
-    // Si ya existe un administrador, esta pantalla no debe usarse.
-    let adminExists = false;
-    try {
-      const result = await apiClient.get<{ admin_exists: boolean }>(
-        "/user-metadata/admin-exists",
-      );
-      adminExists = result.admin_exists;
-    } catch (err) {
-      // Ante un error de red dejamos continuar: el backend revalidará al enviar
-      // el bootstrap y devolverá 409 si ya existe un administrador.
-      if (!(err instanceof ApiError)) throw err;
-    }
-    if (adminExists) {
-      throw redirect({ to: "/login" });
-    }
-  },
   component: SetupAdminComponent,
 });
 
@@ -36,6 +19,7 @@ function SetupAdminComponent() {
 
   const form = useForm({
     defaultValues: {
+      creation_key: "",
       name: "",
       email: "",
       password: "",
@@ -43,7 +27,7 @@ function SetupAdminComponent() {
     },
     onSubmit: async ({ value }) => {
       // 1. Crear la cuenta en Better Auth (auto inicia sesión).
-      const { error: signUpError } = await authClient.signUp.email({
+      const { data, error: signUpError } = await authClient.signUp.email({
         email: value.email,
         password: value.password,
         name: value.name,
@@ -54,17 +38,24 @@ function SetupAdminComponent() {
         return;
       }
 
-      // 2. Promover al usuario recién creado a Administrador inicial.
+      const betterAuthUserId = data?.user?.id;
+      if (!betterAuthUserId) {
+        toast.error("No se pudo obtener el ID del usuario recién creado");
+        return;
+      }
+
+      // 2. Promover a Administrador validando la clave de creación (sin JWT).
       try {
-        await apiClient.post("/user-metadata/bootstrap-admin", {
+        await apiClient.post("/user-metadata/create-admin", {
+          better_auth_user_id: betterAuthUserId,
           hourly_rate: value.hourly_rate,
+          creation_key: value.creation_key,
         });
-        toast.success("Administrador inicial creado correctamente");
+        toast.success("Administrador creado correctamente");
         navigate({ to: "/dashboard" });
       } catch (err: any) {
-        if (err?.status === 409) {
-          toast.error("Ya existe un administrador. Inicia sesión.");
-          navigate({ to: "/login" });
+        if (err?.status === 403) {
+          toast.error("Clave de creación inválida");
           return;
         }
         toast.error(err?.message || "No se pudo asignar el rol de administrador");
@@ -72,6 +63,7 @@ function SetupAdminComponent() {
     },
     validators: {
       onSubmit: z.object({
+        creation_key: z.string().min(1, "La clave de creación es obligatoria"),
         name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
         email: z.email("Correo electrónico inválido"),
         password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
@@ -91,10 +83,10 @@ function SetupAdminComponent() {
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-600/20 p-3">
             <ShieldCheckIcon className="size-7 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Configuración inicial</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Crear administrador</h1>
           <p className="text-sm text-slate-400">
-            Crea la cuenta del <span className="font-semibold text-emerald-400">Administrador</span> inicial
-            del sistema. Esta pantalla solo está disponible mientras no exista ninguno.
+            Crea una cuenta con rol <span className="font-semibold text-emerald-400">Administrador</span>.
+            Necesitas la <span className="font-semibold text-slate-200">clave de creación</span> del sistema.
           </p>
         </div>
 
@@ -106,6 +98,28 @@ function SetupAdminComponent() {
           }}
           className="space-y-4"
         >
+          <form.Field name="creation_key">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor={field.name}>Clave de creación</Label>
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="password"
+                  autoComplete="off"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                {field.state.meta.errors.map((error) => (
+                  <p key={error?.message} className="text-sm text-rose-400">
+                    {error?.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </form.Field>
+
           <form.Field name="name">
             {(field) => (
               <div className="space-y-2">
@@ -200,7 +214,7 @@ function SetupAdminComponent() {
                 className="w-full bg-emerald-600 hover:bg-emerald-500"
                 disabled={!canSubmit || isSubmitting}
               >
-                {isSubmitting ? "Creando administrador..." : "Crear administrador inicial"}
+                {isSubmitting ? "Creando administrador..." : "Crear administrador"}
               </Button>
             )}
           </form.Subscribe>

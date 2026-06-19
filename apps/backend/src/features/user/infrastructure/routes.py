@@ -1,17 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import (
-    get_current_user_id,
-    get_current_user_metadata,
-    require_roles,
-)
+from src.features.auth.dependencies import get_current_user_metadata, require_roles
 from src.features.user.application.dtos import (
-    BootstrapAdminCommand,
+    CreateAdminCommand,
     CreateOrUpdateUserMetadataCommand,
     UserMetadataResponse,
-)
-from src.features.user.application.use_cases.bootstrap_admin import (
-    BootstrapInitialAdminUseCase,
 )
 from src.features.user.application.use_cases.create_or_update_metadata import (
     CreateOrUpdateUserMetadataUseCase,
@@ -20,54 +13,52 @@ from src.features.user.application.use_cases.get_user_metadata import (
     GetUserMetadataByBetterAuthIdUseCase,
 )
 from src.features.user.domain.entities import UserRole
-from src.features.user.domain.exceptions import AdminAlreadyExistsException
 from src.features.user.domain.services import UserMetadataDomainService
 from src.features.user.infrastructure.repositories import UserRepository
 from src.shared.infrastructure.database.db import get_uow
 
 router = APIRouter(prefix="/user-metadata", tags=["User Metadata"])
 
-
-@router.get("/admin-exists", response_model=dict)
-async def admin_exists(
-    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-) -> dict:
-    """Indica si ya existe un administrador en el sistema (endpoint público).
-
-    Útil para que el frontend decida si debe mostrar la pantalla de
-    configuración inicial del administrador.
-    """
-    repo = UserRepository(uow)
-    return {"admin_exists": await repo.exists_any_admin()}
+# =============================================================================
+# Clave de creación del administrador (HARDCODEADA).
+# Quien conozca esta clave puede crear un usuario con rol Administrador desde la
+# página pública /setup-admin, sin necesidad de un administrador previo ni JWT.
+# Cámbiala por una cadena privada antes de exponer el sistema en producción.
+# =============================================================================
+ADMIN_CREATION_KEY = "SGMM-CLAVE-ADMIN-2026"
 
 
 @router.post(
-    "/bootstrap-admin",
+    "/create-admin",
     response_model=UserMetadataResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def bootstrap_admin(
-    command: BootstrapAdminCommand,
-    better_auth_user_id: str = Depends(get_current_user_id),
+async def create_admin(
+    command: CreateAdminCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
 ) -> UserMetadataResponse:
-    """Registra al administrador inicial del sistema.
+    """Crea (o promueve) un usuario como Administrador validando la clave de creación.
 
-    Solo requiere un JWT válido de Better Auth (no un rol previo). Falla con
-    HTTP 409 si ya existe algún administrador. El usuario promovido es el dueño
-    del token, no un ID enviado por el cliente.
+    Endpoint público gobernado por una clave estática (`ADMIN_CREATION_KEY`):
+    no requiere JWT ni un administrador previo. Devuelve HTTP 403 si la clave
+    es incorrecta.
     """
+    if command.creation_key != ADMIN_CREATION_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Clave de creación inválida.",
+        )
+
     repo = UserRepository(uow)
     service = UserMetadataDomainService(repo)
-    use_case = BootstrapInitialAdminUseCase(service, uow)
-    command.better_auth_user_id = better_auth_user_id
-    try:
-        return await use_case.execute(command)
-    except AdminAlreadyExistsException as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        )
+    use_case = CreateOrUpdateUserMetadataUseCase(service, uow)
+    inner = CreateOrUpdateUserMetadataCommand(
+        better_auth_user_id=command.better_auth_user_id,
+        role=UserRole.ADMINISTRADOR,
+        hourly_rate=command.hourly_rate,
+        performed_by="admin-setup",
+    )
+    return await use_case.execute(inner)
 
 
 @router.post(

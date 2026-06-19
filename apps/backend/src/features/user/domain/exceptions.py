@@ -10,11 +10,3 @@ class UserMetadataAlreadyExistsException(Exception):
         super().__init__(
             f"Ya existen metadatos registrados para el usuario '{better_auth_user_id}'."
         )
-
-
-class AdminAlreadyExistsException(Exception):
-    def __init__(self) -> None:
-        super().__init__(
-            "Ya existe un administrador en el sistema. El registro del administrador "
-            "inicial solo está disponible cuando no hay ninguno."
-        )
