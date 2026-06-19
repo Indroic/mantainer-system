@@ -11,7 +11,8 @@ import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 import { TRPCProvider } from "./utils/trpc";
 
-const authBaseURL = typeof window !== "undefined" ? window.location.origin : env.VITE_AUTH_URL;
+// El router tRPC se sirve desde el servidor de Better Auth, no desde el origen de la web.
+const authBaseURL = env.VITE_AUTH_URL;
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({

@@ -11,8 +11,12 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
       - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
-      - BETTER_AUTH_URL=https://sgmm.indroic.dev
+      # URL pública PROPIA del servidor de auth (su subdominio), no la de la web
+      - BETTER_AUTH_URL=https://authsgmm.indroic.dev
+      # Origen de la web (admite varios separados por coma)
       - CORS_ORIGIN=https://sgmm.indroic.dev
+      # Dominio padre compartido para cookies de sesión cross-subdominio
+      - COOKIE_DOMAIN=.indroic.dev
     networks:
       - dokploy-network
     restart: always

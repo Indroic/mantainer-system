@@ -10,12 +10,20 @@ import { logger } from "hono/logger";
 const app = new Hono();
 
 app.use(logger());
+
+// CORS_ORIGIN admite uno o varios orígenes separados por coma.
+const allowedOrigins = env.CORS_ORIGIN.split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: allowedOrigins,
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
     credentials: true,
   }),
 );
