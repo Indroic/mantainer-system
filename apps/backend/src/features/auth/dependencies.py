@@ -25,8 +25,12 @@ def _parse_role(raw: str | None) -> UserRole | None:
         c for c in unicodedata.normalize("NFD", str(raw)) if unicodedata.category(c) != "Mn"
     ).upper()
     mapping = {
-        "ADMINISTRADOR": UserRole.ADMINISTRADOR,
+        # Roles actuales de Better Auth (en inglés y cortos).
+        "ADMIN": UserRole.ADMINISTRADOR,
         "SUPERVISOR": UserRole.SUPERVISOR,
+        "MECHANIC": UserRole.MECANICO,
+        # Compatibilidad con valores antiguos en español.
+        "ADMINISTRADOR": UserRole.ADMINISTRADOR,
         "MECANICO": UserRole.MECANICO,
     }
     return mapping.get(normalized)

@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function DashboardComponent() {
-  const { user, role, isAdmin, isSupervisor } = useAuth();
+  const { user, roleLabel, isAdmin, isSupervisor } = useAuth();
   
   // Consultar caches de forma optimizada
   const { data: machines = [], isLoading: machinesLoading } = useMachines();
@@ -61,7 +61,7 @@ function DashboardComponent() {
           Hola, {user?.name || "Técnico"}
         </h2>
         <p className="text-slate-400 text-sm font-medium">
-          Bienvenido al centro operativo del taller. Rol: <span className="text-slate-200 uppercase font-bold">{role || "Mecánico"}</span>
+          Bienvenido al centro operativo del taller. Rol: <span className="text-slate-200 uppercase font-bold">{roleLabel || "Mecánico"}</span>
         </p>
       </div>
 

@@ -3,6 +3,23 @@ import * as schema from "@mantainer-system/db/schema/auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, jwt } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
+import { adminAc, defaultStatements } from "better-auth/plugins/admin/access";
+
+// =============================================================================
+// Roles del sistema (en inglés y cortos). Se definen con el access control de
+// Better Auth para que el plugin admin los reconozca:
+//   - admin:      administra usuarios/sesiones (hereda permisos de adminAc).
+//   - supervisor: rol de negocio, sin permisos de administración de Better Auth.
+//   - mechanic:   rol por defecto, sin permisos de administración.
+// El valor de `role` viaja en el JWT y lo consume el frontend y el backend.
+// =============================================================================
+const ac = createAccessControl(defaultStatements);
+const roles = {
+  admin: ac.newRole(adminAc.statements),
+  supervisor: ac.newRole({ user: [], session: [] }),
+  mechanic: ac.newRole({ user: [], session: [] }),
+};
 
 // =============================================================================
 // Configuración HARDCODEADA (no depende de variables de entorno).
@@ -50,11 +67,12 @@ export function createAuth() {
     },
     plugins: [
       // El plugin admin añade el campo `role` al usuario (viaja en el JWT) y
-      // habilita la gestión de roles. Los roles de negocio se almacenan como
-      // texto: "Administrador" | "Supervisor" | "Mecánico".
+      // habilita la gestión de roles. Roles: "admin" | "supervisor" | "mechanic".
       admin({
-        adminRoles: ["Administrador"],
-        defaultRole: "Mecánico",
+        ac,
+        roles,
+        adminRoles: ["admin"],
+        defaultRole: "mechanic",
       }),
       jwt(),
     ],

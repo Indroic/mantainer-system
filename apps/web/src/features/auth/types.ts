@@ -1,4 +1,6 @@
-export type UserRole = "ADMINISTRADOR" | "SUPERVISOR" | "MECANICO";
+// Roles de Better Auth (en inglés y cortos). Coinciden con los definidos en
+// packages/auth (admin plugin + access control) y con el claim `role` del JWT.
+export type UserRole = "admin" | "supervisor" | "mechanic";
 
 export interface UserMetadataResponse {
   id: string;

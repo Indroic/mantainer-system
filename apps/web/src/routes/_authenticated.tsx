@@ -51,7 +51,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { user, role, isAdmin, isSupervisor, isLoading } = useAuth();
+  const { user, roleLabel, isAdmin, isSupervisor, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -184,7 +184,7 @@ function AuthenticatedLayout() {
                   </div>
                   <div className="hidden sm:block">
                     <p className="text-xs font-bold text-slate-100 truncate max-w-[120px]">{user?.name}</p>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{role || "Mecánico"}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{roleLabel || "Mecánico"}</p>
                   </div>
                 </button>
               </DropdownMenuTrigger>

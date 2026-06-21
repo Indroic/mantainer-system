@@ -65,10 +65,7 @@ app.post("/create-admin", async (c) => {
         email: body.email,
         password: body.password,
         name: body.name,
-        // El rol custom "Administrador" es válido en runtime (definido en el
-        // plugin admin), aunque el tipo inferido por defecto solo contemple
-        // "user" | "admin".
-        role: "Administrador" as unknown as "admin",
+        role: "admin",
       },
     });
     const userId = result?.user?.id;
