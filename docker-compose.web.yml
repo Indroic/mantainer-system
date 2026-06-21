@@ -6,8 +6,11 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     environment:
-      - VITE_API_URL=${VITE_API_URL}
-      - VITE_AUTH_URL=${VITE_AUTH_URL}
+      # HARDCODEADO (prototipo). En realidad no se usan en runtime: el frontend
+      # apunta al mismo origen vía el proxy inverso de nginx (URLs fijadas en el
+      # código). Se dejan por compatibilidad con inject-env.sh.
+      - VITE_API_URL=https://sgmm.indroic.dev
+      - VITE_AUTH_URL=https://sgmm.indroic.dev
     container_name: web
     networks:
       - dokploy-network
