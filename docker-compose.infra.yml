@@ -5,16 +5,21 @@ services:
     image: postgres:15-alpine
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_secure_password
-      POSTGRES_DB: sgmm_auth_db
+      # Fuente de verdad de las credenciales de Postgres. Si las defines en
+      # Dokploy (nivel proyecto), todos los servicios deben usar el MISMO valor.
+      # OJO: POSTGRES_PASSWORD solo se aplica en la PRIMERA inicialización del
+      # volumen; si el volumen ya existía con otra clave, hay que resetearla o
+      # recrear el volumen (ver instrucciones de despliegue).
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sgmm_auth_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - dokploy-network
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sgmm_auth_db"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5

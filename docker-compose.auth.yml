@@ -9,7 +9,7 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
       - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
       # Topología SINGLE-ORIGIN: el navegador alcanza el auth vía el proxy inverso
       # de la web en https://sgmm.indroic.dev/api/auth/*. Este servicio NO necesita
