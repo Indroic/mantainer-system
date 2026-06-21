@@ -46,7 +46,12 @@ services:
 
 volumes:
   postgres_data:
-    name: sgmm_postgres_data
+    # Volumen NUEVO (v2): fuerza una inicialización limpia de Postgres con la clave
+    # hardcodeada (postgres_secure_password). El volumen antiguo `sgmm_postgres_data`
+    # se había creado con otra contraseña y `POSTGRES_PASSWORD` no reescribe un
+    # volumen ya inicializado, de ahí el error 28P01. Al cambiar el nombre, Docker
+    # crea uno vacío y la clave del compose aplica desde cero.
+    name: sgmm_postgres_data_v2
 
 networks:
   dokploy-network:
