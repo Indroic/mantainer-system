@@ -14,11 +14,11 @@ const app = new Hono();
 
 app.use(logger());
 
-// Orígenes permitidos HARDCODEADOS (origen de la web y del propio auth).
-const ALLOWED_ORIGINS = [
-  "https://sgmm.indroic.dev",
-  "https://authsgmm.indroic.dev",
-];
+// Orígenes permitidos HARDCODEADOS. En la topología single-origin (todo detrás
+// del proxy inverso de la web) las peticiones del navegador son del mismo origen
+// y CORS deja de aplicar; este middleware queda como red de seguridad por si el
+// servicio se expusiera directamente.
+const ALLOWED_ORIGINS = ["https://sgmm.indroic.dev"];
 
 app.use(
   "/*",

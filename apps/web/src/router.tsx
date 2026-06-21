@@ -10,8 +10,9 @@ import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 import { TRPCProvider } from "./utils/trpc";
 
-// URL HARDCODEADA: el router tRPC se sirve desde el servidor de Better Auth.
-const authBaseURL = "https://authsgmm.indroic.dev";
+// Mismo origen que la web: el router tRPC se alcanza vía proxy inverso en
+// `/trpc/*` (configurado en nginx), evitando CORS.
+const authBaseURL = "https://sgmm.indroic.dev";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
