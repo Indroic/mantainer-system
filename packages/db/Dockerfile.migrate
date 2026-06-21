@@ -11,8 +11,8 @@ COPY packages/ ./packages/
 # Instalar dependencias
 RUN pnpm install --frozen-lockfile
 
-# Sincroniza el esquema de Better Auth con Postgres. Usamos `push` (no `migrate`)
-# porque el proyecto no mantiene archivos de migración generados; push reconcilia
-# las tablas de auth (acotadas por tablesFilter en drizzle.config.ts) añadiendo
-# columnas/tablas que falten. `--force` evita prompts interactivos en el contenedor.
-CMD ["pnpm", "--filter", "@mantainer-system/db", "db:push:ci"]
+# Sincroniza el esquema de Better Auth con Postgres mediante DDL idempotente
+# (scripts/migrate-auth.mjs). Evitamos `drizzle-kit push` porque su introspección
+# de la base compartida con Alembic fallaba en el contenedor. Este script sólo
+# crea/actualiza las 4 tablas de Better Auth y no toca las tablas de Alembic.
+CMD ["pnpm", "--filter", "@mantainer-system/db", "db:auth:sync"]

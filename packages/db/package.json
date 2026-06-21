@@ -12,6 +12,7 @@
   "scripts": {
     "db:push": "drizzle-kit push",
     "db:push:ci": "drizzle-kit push --force",
+    "db:auth:sync": "node scripts/migrate-auth.mjs",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate"
