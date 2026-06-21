@@ -79,6 +79,17 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+// Tabla requerida por el plugin jwt de Better Auth: almacena el par de claves
+// (JWKS) usado para firmar/verificar los JWT. Sin ella el adaptador drizzle
+// lanza: 'The model "jwks" was not found in the schema object'.
+export const jwks = pgTable("jwks", {
+  id: text("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+});
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),

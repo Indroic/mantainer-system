@@ -14,5 +14,5 @@ RUN pnpm install --frozen-lockfile
 # Sincroniza el esquema de Better Auth con Postgres mediante DDL idempotente
 # (scripts/migrate-auth.mjs). Evitamos `drizzle-kit push` porque su introspección
 # de la base compartida con Alembic fallaba en el contenedor. Este script sólo
-# crea/actualiza las 4 tablas de Better Auth y no toca las tablas de Alembic.
+# crea/actualiza las tablas de Better Auth (incluida jwks) y no toca las de Alembic.
 CMD ["pnpm", "--filter", "@mantainer-system/db", "db:auth:sync"]

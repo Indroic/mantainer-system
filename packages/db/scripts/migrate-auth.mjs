@@ -5,8 +5,8 @@
 //   - Better Auth (drizzle) y el backend FastAPI (Alembic) comparten la misma
 //     base de datos. La introspección de drizzle-kit sobre toda la DB fallaba
 //     en el contenedor de migración.
-//   - Este script aplica DDL idempotente EXCLUSIVAMENTE sobre las 4 tablas de
-//     Better Auth (user/session/account/verification). No introspecciona ni
+//   - Este script aplica DDL idempotente EXCLUSIVAMENTE sobre las tablas de
+//     Better Auth (user/session/account/verification/jwks). No introspecciona ni
 //     toca las tablas gestionadas por Alembic, y reporta errores claros.
 //
 // Es seguro ejecutarlo múltiples veces: usa CREATE TABLE IF NOT EXISTS,
@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS "verification" (
   "updated_at" timestamp DEFAULT now() NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "verification_identifier_idx" ON "verification" ("identifier");
+
+-- ----- TABLA jwks (plugin jwt: par de claves para firmar/verificar JWT) -----
+CREATE TABLE IF NOT EXISTS "jwks" (
+  "id" text PRIMARY KEY NOT NULL,
+  "public_key" text NOT NULL,
+  "private_key" text NOT NULL,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "expires_at" timestamp
+);
+ALTER TABLE "jwks" ADD COLUMN IF NOT EXISTS "expires_at" timestamp;
 
 -- ----- Claves foráneas (sólo si no existen) -----
 DO $$
