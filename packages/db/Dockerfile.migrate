@@ -11,5 +11,8 @@ COPY packages/ ./packages/
 # Instalar dependencias
 RUN pnpm install --frozen-lockfile
 
-# El comando por defecto ejecutará las migraciones de Drizzle sobre Postgres
-CMD ["pnpm", "--filter", "@mantainer-system/db", "db:migrate"]
+# Sincroniza el esquema de Better Auth con Postgres. Usamos `push` (no `migrate`)
+# porque el proyecto no mantiene archivos de migración generados; push reconcilia
+# las tablas de auth (acotadas por tablesFilter en drizzle.config.ts) añadiendo
+# columnas/tablas que falten. `--force` evita prompts interactivos en el contenedor.
+CMD ["pnpm", "--filter", "@mantainer-system/db", "db:push:ci"]
