@@ -1,16 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 
 import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
 
 export const Route = createFileRoute("/login")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const [showSignIn, setShowSignIn] = useState(true);
-
   return (
     <div className="relative flex h-screen w-screen items-center justify-center bg-slate-950 overflow-hidden text-slate-100 font-sans">
       {/* Círculos con gradiente decorativos en el fondo */}
@@ -31,11 +27,7 @@ function RouteComponent() {
           </span>
         </div>
 
-        {showSignIn ? (
-          <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-        ) : (
-          <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-        )}
+        <SignInForm />
 
         <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
           <Link

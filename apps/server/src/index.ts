@@ -2,7 +2,6 @@ import { trpcServer } from "@hono/trpc-server";
 import { createContext } from "@mantainer-system/api/context";
 import { appRouter } from "@mantainer-system/api/routers/index";
 import { auth } from "@mantainer-system/auth";
-import { setUserRole } from "@mantainer-system/db";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -58,15 +57,24 @@ app.post("/create-admin", async (c) => {
   }
 
   try {
-    const result = await auth.api.signUpEmail({
-      body: { email: body.email, password: body.password, name: body.name },
+    // createUser (plugin admin) crea el usuario con su rol en una sola llamada y
+    // NO pasa por `disableSignUp`. Llamado server-side sin headers, no exige una
+    // sesión de admin previa.
+    const result = await auth.api.createUser({
+      body: {
+        email: body.email,
+        password: body.password,
+        name: body.name,
+        // El rol custom "Administrador" es válido en runtime (definido en el
+        // plugin admin), aunque el tipo inferido por defecto solo contemple
+        // "user" | "admin".
+        role: "Administrador" as unknown as "admin",
+      },
     });
     const userId = result?.user?.id;
     if (!userId) {
       return c.json({ error: "No se pudo crear el usuario" }, 500);
     }
-    // Eleva el rol del usuario recién creado a Administrador.
-    await setUserRole(userId, "Administrador");
     return c.json({ ok: true, userId });
   } catch (err) {
     const message =

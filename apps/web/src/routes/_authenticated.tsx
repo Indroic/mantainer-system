@@ -28,8 +28,18 @@ import NotificationCenter from "@/features/alertas/components/notification-cente
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
-    // Verificación de sesión del lado del cliente (SPA estático, sin server functions)
-    const { data: session } = await authClient.getSession();
+    // Verificación de sesión del lado del cliente (SPA estático, sin server functions).
+    // Si el servidor de auth no responde (error de red / CORS), getSession puede
+    // lanzar "Failed to fetch": lo capturamos y tratamos como sesión ausente para
+    // redirigir al login en lugar de romper la carga de la ruta.
+    let session: Awaited<ReturnType<typeof authClient.getSession>>["data"] = null;
+    try {
+      const result = await authClient.getSession();
+      session = result.data;
+    } catch {
+      session = null;
+    }
+
     if (!session) {
       throw redirect({
         to: "/login",

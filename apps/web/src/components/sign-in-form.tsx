@@ -9,7 +9,7 @@ import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm() {
   const { isPending } = authClient.useSession();
 
   const form = useForm({
@@ -29,7 +29,13 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             toast.success("Sign in successful");
           },
           onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
+            // Un fallo de red contra el servidor de auth llega como "Failed to fetch":
+            // mostramos un mensaje claro en español en lugar del texto crudo.
+            const raw = error.error.message || error.error.statusText || "";
+            const message = /failed to fetch|fetch failed|networkerror/i.test(raw)
+              ? "No se pudo contactar al servidor de autenticación"
+              : raw || "No se pudo iniciar sesión";
+            toast.error(message);
           },
         },
       );
@@ -114,16 +120,6 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           )}
         </form.Subscribe>
       </form>
-
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignUp}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Need an account? Sign Up
-        </Button>
-      </div>
     </div>
   );
 }

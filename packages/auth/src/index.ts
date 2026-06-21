@@ -32,6 +32,10 @@ export function createAuth() {
     trustedOrigins: TRUSTED_ORIGINS,
     emailAndPassword: {
       enabled: true,
+      // El registro público está deshabilitado: las cuentas se crean únicamente
+      // vía /create-admin (clave de creación) usando auth.api.createUser, que no
+      // pasa por este guard.
+      disableSignUp: true,
     },
     secret: BETTER_AUTH_SECRET,
     baseURL: BETTER_AUTH_URL,
