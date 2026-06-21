@@ -6,19 +6,17 @@ import { admin, jwt } from "better-auth/plugins";
 
 // =============================================================================
 // Configuración HARDCODEADA (no depende de variables de entorno).
-// Topología cross-subdominio:
-//   - web:  https://sgmm.indroic.dev
-//   - auth: https://authsgmm.indroic.dev
-//   - api:  https://apisgmm.indroic.dev
+// Topología SINGLE-ORIGIN (todo detrás del proxy inverso de la web):
+//   - web + auth + api:  https://sgmm.indroic.dev
+//     · /api/auth/*  -> auth-server (Better Auth)
+//     · /trpc/*      -> auth-server
+//     · /api/*       -> backend FastAPI
+// Al servirse todo desde el mismo dominio, NO hay CORS ni cookies cross-subdominio.
 // =============================================================================
-const BETTER_AUTH_URL = "https://authsgmm.indroic.dev";
+const BETTER_AUTH_URL = "https://sgmm.indroic.dev";
 const BETTER_AUTH_SECRET =
   "df8374a2b918fcd3e5719365bc920c8de817f5492bc394a108de92bc8172fa8b";
-const COOKIE_DOMAIN = ".indroic.dev";
-const TRUSTED_ORIGINS = [
-  "https://sgmm.indroic.dev",
-  "https://authsgmm.indroic.dev",
-];
+const TRUSTED_ORIGINS = ["https://sgmm.indroic.dev"];
 
 export function createAuth() {
   const db = createDb();
@@ -40,13 +38,12 @@ export function createAuth() {
     secret: BETTER_AUTH_SECRET,
     baseURL: BETTER_AUTH_URL,
     advanced: {
-      // Comparte la cookie de sesión entre subdominios (web y auth).
-      crossSubDomainCookies: {
-        enabled: true,
-        domain: COOKIE_DOMAIN,
-      },
+      // Mismo origen (sgmm.indroic.dev) vía proxy inverso: la cookie de sesión
+      // es de primera parte (host-only), por lo que sameSite "lax" es suficiente
+      // y evita los problemas de cookies de terceros. El proxy termina TLS y
+      // reenvía X-Forwarded-Proto=https, por eso mantenemos secure=true.
       defaultCookieAttributes: {
-        sameSite: "none",
+        sameSite: "lax",
         secure: true,
         httpOnly: true,
       },

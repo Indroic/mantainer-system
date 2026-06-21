@@ -1,7 +1,8 @@
 import { authClient } from "./auth-client";
 
-// URL HARDCODEADA del backend FastAPI.
-const API_BASE_URL = "https://apisgmm.indroic.dev";
+// Mismo origen que la web: el backend FastAPI se alcanza vía proxy inverso bajo
+// `/api/*` (configurado en nginx). Los routers de FastAPI ya cuelgan de `/api`.
+const API_BASE_URL = "https://sgmm.indroic.dev/api";
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;

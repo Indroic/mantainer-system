@@ -11,12 +11,11 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
       - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
-      # URL pública PROPIA del servidor de auth (su subdominio), no la de la web
-      - BETTER_AUTH_URL=https://authsgmm.indroic.dev
-      # Origen de la web (admite varios separados por coma)
-      - CORS_ORIGIN=https://sgmm.indroic.dev
-      # Dominio padre compartido para cookies de sesión cross-subdominio
-      - COOKIE_DOMAIN=.indroic.dev
+      # Topología SINGLE-ORIGIN: el navegador alcanza el auth vía el proxy inverso
+      # de la web en https://sgmm.indroic.dev/api/auth/*. Este servicio NO necesita
+      # un dominio público propio en Dokploy; basta con estar en dokploy-network
+      # para que el contenedor `web` lo resuelva por nombre (auth-server:3000).
+      - BETTER_AUTH_URL=https://sgmm.indroic.dev
     networks:
       - dokploy-network
     restart: always

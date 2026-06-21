@@ -13,7 +13,7 @@ export function useAuditLogs(filters?: { entity_name?: string; action?: string }
       if (filters?.action && filters.action !== "ALL") {
         params.action = filters.action;
       }
-      return await apiClient.get<AuditLogResponse[]>("/auditing/", { params });
+      return await apiClient.get<AuditLogResponse[]>("/audit-logs/", { params });
     },
     staleTime: 5 * 1000,
   });

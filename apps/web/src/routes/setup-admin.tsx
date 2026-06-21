@@ -9,8 +9,8 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
-// URL HARDCODEADA del servidor de Better Auth (donde vive /create-admin).
-const AUTH_URL = "https://authsgmm.indroic.dev";
+// Mismo origen que la web: /create-admin se alcanza vía proxy inverso (nginx).
+const AUTH_URL = "https://sgmm.indroic.dev";
 
 export const Route = createFileRoute("/setup-admin")({
   component: SetupAdminComponent,
