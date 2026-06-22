@@ -22,6 +22,7 @@ import {
   LogOutIcon,
   UserIcon,
   MenuIcon,
+  UsersIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -105,6 +106,12 @@ function AuthenticatedLayout() {
       to: "/auditoria",
       label: "Auditoría",
       icon: ShieldAlertIcon,
+      visible: isAdmin,
+    },
+    {
+      to: "/usuarios",
+      label: "Usuarios",
+      icon: UsersIcon,
       visible: isAdmin,
     },
   ];

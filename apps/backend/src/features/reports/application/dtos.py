@@ -9,9 +9,18 @@ class CostReportFilterCommand(DTO):
     end_date: datetime | None = None
 
 
+class CostReportItem(DTO):
+    machine_code: str
+    machine_brand: str
+    machine_model: str
+    spare_parts_cost: float
+
+
 class CostReportResponse(DTO):
-    spare_parts_cost_total: float
-    accumulated_cost_total: float
+    total_spare_parts_cost: float
+    machines_cost_breakdown: list[CostReportItem]
+    spare_parts_cost_total: float | None = None
+    accumulated_cost_total: float | None = None
 
 
 class TechnicalHistoryItem(DTO):
