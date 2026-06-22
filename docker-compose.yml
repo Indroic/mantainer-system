@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  postgres:
+  sgmm-postgres:
     image: postgres:15-alpine
-    container_name: postgres
+    container_name: sgmm-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres_secure_password
@@ -27,12 +27,12 @@ services:
       dockerfile: packages/db/Dockerfile.migrate
     container_name: auth-migrate
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
     networks:
       - dokploy-network
     restart: "no"
     depends_on:
-      postgres:
+      sgmm-postgres:
         condition: service_healthy
 
   # Tarea de un solo disparo para ejecutar las migraciones de la API FastAPI (Alembic)
@@ -42,14 +42,14 @@ services:
       dockerfile: Dockerfile
     container_name: backend-migrate
     environment:
-      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
-      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
+      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
     networks:
       - dokploy-network
     entrypoint: ["alembic", "upgrade", "head"]
     restart: "no"
     depends_on:
-      postgres:
+      sgmm-postgres:
         condition: service_healthy
 
   auth-server:
@@ -60,7 +60,7 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
       - BETTER_AUTH_SECRET=better_auth_secret_32_characters_long_key
       - BETTER_AUTH_URL=http://localhost
     networks:
@@ -77,8 +77,8 @@ services:
     container_name: backend
     environment:
       - PORT=8000
-      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
-      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
+      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
+      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
       - BETTER_AUTH_URL=http://auth-server:3000
       - JWKS_URL=http://auth-server:3000/api/auth/jwks
     networks:
@@ -107,7 +107,7 @@ services:
 
 volumes:
   postgres_data:
-    name: sgmm_postgres_data_v3
+    name: sgmm_postgres_data_v4
 
 networks:
   dokploy-network:
