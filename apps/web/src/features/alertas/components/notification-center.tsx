@@ -73,9 +73,11 @@ export default function NotificationCenter() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80 bg-slate-900 border border-slate-800 text-slate-100 p-2 rounded-2xl shadow-xl z-50">
-        <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-          Alertas Activas del Taller
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Alertas Activas del Taller
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator className="bg-slate-800" />
         <DropdownMenuGroup className="max-h-80 overflow-y-auto space-y-1.5 p-1">
           {!hasNotifications ? (

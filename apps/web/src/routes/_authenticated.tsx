@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuGroup,
 } from "@mantainer-system/ui/components/dropdown-menu";
 import {
   WrenchIcon,
@@ -189,9 +190,11 @@ function AuthenticatedLayout() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-slate-900 border border-slate-800 text-slate-100 p-2 rounded-2xl shadow-xl">
-                <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-slate-400 uppercase">
-                  Mi Perfil
-                </DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-slate-400 uppercase">
+                    Mi Perfil
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator className="bg-slate-800" />
                 <DropdownMenuItem asChild>
                   <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-slate-800 transition-colors">
