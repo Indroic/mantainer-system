@@ -12,7 +12,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Badge } from "@mantainer-system/ui/components/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
 import { useForm } from "@tanstack/react-form";
-import { UsersIcon, PlusIcon, Trash2Icon, AlertTriangleIcon, MailIcon, ShieldCheckIcon } from "lucide-react";
+import { UsersIcon, PlusIcon, Trash2Icon, AlertTriangleIcon, MailIcon, ShieldCheckIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
@@ -28,8 +28,18 @@ const userSchema = z.object({
   role: z.enum(["admin", "supervisor", "mechanic"]),
 });
 
+const getErrorMessage = (err: any): string => {
+  if (!err) return "";
+  if (typeof err === "string") return err;
+  if (typeof err === "object") {
+    if (err.message) return err.message;
+    if (err._errors && Array.isArray(err._errors)) return err._errors.join(", ");
+  }
+  return String(err);
+};
+
 function UsuariosComponent() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -208,8 +218,8 @@ function UsuariosComponent() {
                       className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                     />
                     {field.state.meta.errors.map((error) => (
-                      <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                        {String(error)}
+                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                        {getErrorMessage(error)}
                       </p>
                     ))}
                   </div>
@@ -232,8 +242,8 @@ function UsuariosComponent() {
                       className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                     />
                     {field.state.meta.errors.map((error) => (
-                      <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                        {String(error)}
+                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                        {getErrorMessage(error)}
                       </p>
                     ))}
                   </div>
@@ -256,8 +266,8 @@ function UsuariosComponent() {
                       className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                     />
                     {field.state.meta.errors.map((error) => (
-                      <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                        {String(error)}
+                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                        {getErrorMessage(error)}
                       </p>
                     ))}
                   </div>
@@ -283,8 +293,8 @@ function UsuariosComponent() {
                       </SelectContent>
                     </Select>
                     {field.state.meta.errors.map((error) => (
-                      <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                        {String(error)}
+                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                        {getErrorMessage(error)}
                       </p>
                     ))}
                   </div>
@@ -342,63 +352,82 @@ function UsuariosComponent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((item) => (
-                  <TableRow key={item.id} className="border-b border-slate-850 hover:bg-slate-900/20 transition-colors">
-                    <TableCell className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="size-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center font-bold text-indigo-400">
-                          {item.name[0].toUpperCase()}
+                {users.map((item) => {
+                  const isSelf = item.id === user?.id;
+                  const isAdminUser = item.role === "admin";
+                  const isModifyDisabled = isSelf || isAdminUser || changeRoleMutation.isPending;
+
+                  return (
+                    <TableRow key={item.id} className="border-b border-slate-850 hover:bg-slate-900/20 transition-colors">
+                      <TableCell className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center font-bold text-indigo-400">
+                            {item.name[0].toUpperCase()}
+                          </div>
+                          <span className="font-bold text-slate-200 text-xs">
+                            {item.name}
+                            {isSelf && (
+                              <span className="text-indigo-400 font-normal text-[10px] ml-1.5 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-900/30">
+                                Tú
+                              </span>
+                            )}
+                          </span>
                         </div>
-                        <span className="font-bold text-slate-200 text-xs">{item.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-6 py-4 text-xs font-mono text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <MailIcon className="size-3.5 text-slate-500" />
-                        {item.email}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-6 py-4">
-                      {getRoleBadge(item.role)}
-                    </TableCell>
-                    <TableCell className="px-6 py-4">
-                      <Select
-                        value={item.role}
-                        onValueChange={(val) =>
-                          changeRoleMutation.mutate({
-                            userId: item.id,
-                            role: val as "admin" | "supervisor" | "mechanic",
-                          })
-                        }
-                        disabled={changeRoleMutation.isPending}
-                      >
-                        <SelectTrigger className="w-40 bg-slate-950/60 border-slate-800 rounded-lg text-[11px] h-8 text-slate-300">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-lg">
-                          <SelectItem value="mechanic">Mecánico</SelectItem>
-                          <SelectItem value="supervisor">Supervisor</SelectItem>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="px-6 py-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/30 transition-all duration-200 size-8"
-                        onClick={() => {
-                          if (confirm(`¿Está seguro de eliminar de forma permanente al usuario "${item.name}"?`)) {
-                            deleteUserMutation.mutate(item.id);
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-xs font-mono text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <MailIcon className="size-3.5 text-slate-500" />
+                          {item.email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        {getRoleBadge(item.role)}
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <Select
+                          value={item.role}
+                          onValueChange={(val) =>
+                            changeRoleMutation.mutate({
+                              userId: item.id,
+                              role: val as "admin" | "supervisor" | "mechanic",
+                            })
                           }
-                        }}
-                        disabled={deleteUserMutation.isPending}
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          disabled={isModifyDisabled}
+                        >
+                          <SelectTrigger className="w-40 bg-slate-950/60 border-slate-800 rounded-lg text-[11px] h-8 text-slate-300 disabled:opacity-50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-lg">
+                            <SelectItem value="mechanic">Mecánico</SelectItem>
+                            <SelectItem value="supervisor">Supervisor</SelectItem>
+                            <SelectItem value="admin">Administrador</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-right">
+                        {isSelf || isAdminUser ? (
+                          <div className="flex justify-end pr-2 text-slate-500" title="Protegido contra cambios/eliminación">
+                            <LockIcon className="size-4 text-slate-600" />
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/30 transition-all duration-200 size-8"
+                            onClick={() => {
+                              if (confirm(`¿Está seguro de eliminar de forma permanente al usuario "${item.name}"?`)) {
+                                deleteUserMutation.mutate(item.id);
+                              }
+                            }}
+                            disabled={deleteUserMutation.isPending}
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

@@ -1,6 +1,6 @@
 import { createDb } from "@mantainer-system/db";
 import * as schema from "@mantainer-system/db/schema/auth";
-import { betterAuth } from "better-auth";
+import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, jwt } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
@@ -64,6 +64,30 @@ export function createAuth() {
         secure: true,
         httpOnly: true,
       },
+    },
+    hooks: {
+      before: async (ctx) => {
+        if (ctx.path === "/admin/remove-user" || ctx.path === "/admin/set-role") {
+          const body = ctx.body as { userId?: string; role?: string } | undefined;
+          if (body?.userId) {
+            // 1. Evitar auto-acciones (auto-eliminación o auto-cambio de rol)
+            const currentUserId = ctx.context.session?.user?.id;
+            if (currentUserId && body.userId === currentUserId) {
+              throw new APIError("BAD_REQUEST", {
+                message: "No está permitido cambiar tu propio rol o eliminar tu propia cuenta para evitar bloqueos del sistema."
+              });
+            }
+
+            // 2. Evitar eliminar o cambiar el rol de cualquier administrador
+            const targetUser = await ctx.context.internalAdapter.findUserById(body.userId);
+            if (targetUser && targetUser.role === "admin") {
+              throw new APIError("BAD_REQUEST", {
+                message: "No está permitido eliminar o alterar el nivel de acceso de un usuario Administrador por motivos de seguridad."
+              });
+            }
+          }
+        }
+      }
     },
     plugins: [
       // El plugin admin añade el campo `role` al usuario (viaja en el JWT) y
