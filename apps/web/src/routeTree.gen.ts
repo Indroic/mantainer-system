@@ -13,6 +13,7 @@ import { Route as SetupAdminRouteImport } from './routes/setup-admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated.usuarios'
 import { Route as AuthenticatedRepuestosRouteImport } from './routes/_authenticated.repuestos'
 import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated.reportes'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRepuestosRoute = AuthenticatedRepuestosRouteImport.update({
   id: '/repuestos',
@@ -95,12 +101,13 @@ const AuthenticatedMaquinariaIdIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/setup-admin': typeof SetupAdminRoute
   '/login': typeof LoginRoute
+  '/setup-admin': typeof SetupAdminRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/reportes': typeof AuthenticatedReportesRoute
   '/repuestos': typeof AuthenticatedRepuestosRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
   '/mantenimiento/$id': typeof AuthenticatedMantenimientoIdRoute
   '/maquinaria/nueva': typeof AuthenticatedMaquinariaNuevaRoute
   '/mantenimiento/': typeof AuthenticatedMantenimientoIndexRoute
@@ -109,12 +116,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/setup-admin': typeof SetupAdminRoute
   '/login': typeof LoginRoute
+  '/setup-admin': typeof SetupAdminRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/reportes': typeof AuthenticatedReportesRoute
   '/repuestos': typeof AuthenticatedRepuestosRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
   '/mantenimiento/$id': typeof AuthenticatedMantenimientoIdRoute
   '/maquinaria/nueva': typeof AuthenticatedMaquinariaNuevaRoute
   '/mantenimiento': typeof AuthenticatedMantenimientoIndexRoute
@@ -125,12 +133,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/setup-admin': typeof SetupAdminRoute
   '/login': typeof LoginRoute
+  '/setup-admin': typeof SetupAdminRoute
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/reportes': typeof AuthenticatedReportesRoute
   '/_authenticated/repuestos': typeof AuthenticatedRepuestosRoute
+  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/mantenimiento/$id': typeof AuthenticatedMantenimientoIdRoute
   '/_authenticated/maquinaria/nueva': typeof AuthenticatedMaquinariaNuevaRoute
   '/_authenticated/mantenimiento/': typeof AuthenticatedMantenimientoIndexRoute
@@ -141,12 +150,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/setup-admin'
     | '/login'
+    | '/setup-admin'
     | '/auditoria'
     | '/dashboard'
     | '/reportes'
     | '/repuestos'
+    | '/usuarios'
     | '/mantenimiento/$id'
     | '/maquinaria/nueva'
     | '/mantenimiento/'
@@ -155,12 +165,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/setup-admin'
     | '/login'
+    | '/setup-admin'
     | '/auditoria'
     | '/dashboard'
     | '/reportes'
     | '/repuestos'
+    | '/usuarios'
     | '/mantenimiento/$id'
     | '/maquinaria/nueva'
     | '/mantenimiento'
@@ -170,12 +181,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
-    | '/setup-admin'
     | '/login'
+    | '/setup-admin'
     | '/_authenticated/auditoria'
     | '/_authenticated/dashboard'
     | '/_authenticated/reportes'
     | '/_authenticated/repuestos'
+    | '/_authenticated/usuarios'
     | '/_authenticated/mantenimiento/$id'
     | '/_authenticated/maquinaria/nueva'
     | '/_authenticated/mantenimiento/'
@@ -186,8 +198,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
-  SetupAdminRoute: typeof SetupAdminRoute
   LoginRoute: typeof LoginRoute
+  SetupAdminRoute: typeof SetupAdminRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -219,6 +231,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/usuarios': {
+      id: '/_authenticated/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/repuestos': {
       id: '/_authenticated/repuestos'
@@ -291,6 +310,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
   AuthenticatedRepuestosRoute: typeof AuthenticatedRepuestosRoute
+  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedMantenimientoIdRoute: typeof AuthenticatedMantenimientoIdRoute
   AuthenticatedMaquinariaNuevaRoute: typeof AuthenticatedMaquinariaNuevaRoute
   AuthenticatedMantenimientoIndexRoute: typeof AuthenticatedMantenimientoIndexRoute
@@ -303,6 +323,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedReportesRoute: AuthenticatedReportesRoute,
   AuthenticatedRepuestosRoute: AuthenticatedRepuestosRoute,
+  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedMantenimientoIdRoute: AuthenticatedMantenimientoIdRoute,
   AuthenticatedMaquinariaNuevaRoute: AuthenticatedMaquinariaNuevaRoute,
   AuthenticatedMantenimientoIndexRoute: AuthenticatedMantenimientoIndexRoute,
@@ -317,18 +338,9 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
-  SetupAdminRoute: SetupAdminRoute,
   LoginRoute: LoginRoute,
+  SetupAdminRoute: SetupAdminRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
