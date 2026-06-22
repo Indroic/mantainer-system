@@ -2,12 +2,15 @@ import { Badge } from "@mantainer-system/ui/components/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@mantainer-system/ui/components/card";
 import { WrenchIcon, CalendarIcon, CoinsIcon, GaugeIcon, ClipboardListIcon } from "lucide-react";
 import type { MaintenanceOrderResponse } from "@/features/mantenimiento/types";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 interface TechnicalHistoryTimelineProps {
   orders: MaintenanceOrderResponse[];
 }
 
 export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTimelineProps) {
+  const { isAdmin, isSupervisor } = useAuth();
+  const canSeeFinancials = isAdmin || isSupervisor;
   const liquidatedOrders = orders
     .filter((order) => order.status === "LIQUIDADO")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -68,8 +71,12 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                             <th className="px-3 py-1.5">Código</th>
                             <th className="px-3 py-1.5">Nombre</th>
                             <th className="px-3 py-1.5 text-right">Cantidad</th>
-                            <th className="px-3 py-1.5 text-right font-mono">Costo Unit. Hist.</th>
-                            <th className="px-3 py-1.5 text-right font-mono">Subtotal</th>
+                            {canSeeFinancials && (
+                              <>
+                                <th className="px-3 py-1.5 text-right font-mono">Costo Unit. Hist.</th>
+                                <th className="px-3 py-1.5 text-right font-mono">Subtotal</th>
+                              </>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-850/50">
@@ -78,8 +85,12 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                               <td className="px-3 py-2 font-mono font-bold text-indigo-400">{item.spare_part?.code}</td>
                               <td className="px-3 py-2 font-semibold text-slate-200">{item.spare_part?.name}</td>
                               <td className="px-3 py-2 text-right font-mono text-slate-300">{item.quantity}</td>
-                              <td className="px-3 py-2 text-right font-mono text-slate-400">${item.unit_cost_at_time.toFixed(2)}</td>
-                              <td className="px-3 py-2 text-right font-mono font-bold text-indigo-300">${(item.quantity * item.unit_cost_at_time).toFixed(2)}</td>
+                              {canSeeFinancials && (
+                                <>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-400">${item.unit_cost_at_time.toFixed(2)}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-bold text-indigo-300">${(item.quantity * item.unit_cost_at_time).toFixed(2)}</td>
+                                </>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -90,13 +101,23 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
 
                 {/* Resumen de Costos y Cierre */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3.5 bg-slate-950/60 border border-slate-850 rounded-xl gap-3">
-                  <div className="flex items-center gap-2">
-                    <CoinsIcon className="size-4 text-indigo-400 animate-pulse" />
-                    <div>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Costo Financiero Asociado</p>
-                      <p className="text-sm font-bold font-mono text-indigo-300">${orderPartsCost.toFixed(2)}</p>
+                  {canSeeFinancials ? (
+                    <div className="flex items-center gap-2">
+                      <CoinsIcon className="size-4 text-indigo-400 animate-pulse" />
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Costo Financiero Asociado</p>
+                        <p className="text-sm font-bold font-mono text-indigo-300">${orderPartsCost.toFixed(2)}</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <WrenchIcon className="size-4 text-indigo-400" />
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Detalles de la Intervención</p>
+                        <p className="text-xs text-slate-300">Repuestos reemplazados correctamente</p>
+                      </div>
+                    </div>
+                  )}
                   {order.next_service_horometer && (
                     <div className="flex items-center gap-2">
                       <GaugeIcon className="size-4 text-amber-400" />

@@ -22,12 +22,15 @@ import type { MaintenanceOrderResponse } from "../types";
 import type { SparePartResponse } from "@/features/repuestos/types";
 import { toast } from "sonner";
 import { cn } from "@mantainer-system/ui/lib/utils";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 interface ExecutionPanelProps {
   order: MaintenanceOrderResponse;
 }
 
 export default function ExecutionPanel({ order }: ExecutionPanelProps) {
+  const { isAdmin, isSupervisor } = useAuth();
+  const canSeeFinancials = isAdmin || isSupervisor;
   // Queries y Mutaciones
   const startMutation = useStartOrder(order.id);
   const addSparePartMutation = useAddSparePartToOrder(order.id);
@@ -397,14 +400,18 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     <TableHead className="font-semibold text-slate-400">Código</TableHead>
                     <TableHead className="font-semibold text-slate-400">Descripción</TableHead>
                     <TableHead className="font-semibold text-slate-400 text-right">Cantidad</TableHead>
-                    <TableHead className="font-semibold text-slate-400 text-right">Costo Unit. Hist.</TableHead>
-                    <TableHead className="font-semibold text-slate-400 text-right">Subtotal</TableHead>
+                    {canSeeFinancials && (
+                      <>
+                        <TableHead className="font-semibold text-slate-400 text-right">Costo Unit. Hist.</TableHead>
+                        <TableHead className="font-semibold text-slate-400 text-right">Subtotal</TableHead>
+                      </>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {order.spare_parts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-slate-500 font-medium">
+                      <TableCell colSpan={canSeeFinancials ? 5 : 3} className="text-center py-8 text-slate-500 font-medium">
                         No se han asignado repuestos a esta orden de trabajo.
                       </TableCell>
                     </TableRow>
@@ -418,12 +425,16 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                           {item.spare_part?.name || "Repuesto Histórico"}
                         </TableCell>
                         <TableCell className="text-right font-mono text-slate-300">{item.quantity}</TableCell>
-                        <TableCell className="text-right font-mono text-slate-300">
-                          ${item.unit_cost_at_time.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold text-indigo-300">
-                          ${(item.quantity * item.unit_cost_at_time).toFixed(2)}
-                        </TableCell>
+                        {canSeeFinancials && (
+                          <>
+                            <TableCell className="text-right font-mono text-slate-300">
+                              ${item.unit_cost_at_time.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold text-indigo-300">
+                              ${(item.quantity * item.unit_cost_at_time).toFixed(2)}
+                            </TableCell>
+                          </>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -432,15 +443,17 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
             </div>
 
             {/* Sumatoria de Costos */}
-            <div className="flex justify-between items-center p-4 bg-slate-950/40 rounded-xl border border-slate-800/40">
-              <div className="flex items-center gap-2 text-slate-400">
-                <CoinsIcon className="size-4 text-indigo-400" />
-                <span className="text-xs font-semibold uppercase tracking-wider">Costo Financiero de Repuestos</span>
+            {canSeeFinancials && (
+              <div className="flex justify-between items-center p-4 bg-slate-950/40 rounded-xl border border-slate-800/40">
+                <div className="flex items-center gap-2 text-slate-400">
+                  <CoinsIcon className="size-4 text-indigo-400" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Costo Financiero de Repuestos</span>
+                </div>
+                <span className="font-mono text-lg font-bold text-indigo-400">
+                  ${totalCost.toFixed(2)}
+                </span>
               </div>
-              <span className="font-mono text-lg font-bold text-indigo-400">
-                ${totalCost.toFixed(2)}
-              </span>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

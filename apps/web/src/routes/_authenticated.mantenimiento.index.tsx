@@ -18,6 +18,15 @@ export const Route = createFileRoute("/_authenticated/mantenimiento/")({
   component: MantenimientoIndexComponent,
 });
 
+function getErrorMessage(error: any): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    if (error.message) return error.message;
+    if (error.value) return String(error.value);
+  }
+  return String(error);
+}
+
 const orderSchema = z.object({
   machine_id: z.string().min(5, "Seleccione la maquinaria asociada"),
   description: z.string().min(5, "Describa el trabajo a realizar"),
@@ -118,8 +127,8 @@ function MantenimientoIndexComponent() {
                         </SelectContent>
                       </Select>
                       {field.state.meta.errors.map((error) => (
-                        <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                          {String(error)}
+                        <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                          {getErrorMessage(error)}
                         </p>
                       ))}
                     </div>
@@ -141,8 +150,8 @@ function MantenimientoIndexComponent() {
                         className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                       />
                       {field.state.meta.errors.map((error) => (
-                        <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                          {String(error)}
+                        <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                          {getErrorMessage(error)}
                         </p>
                       ))}
                     </div>
@@ -163,8 +172,8 @@ function MantenimientoIndexComponent() {
                         className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                       />
                       {field.state.meta.errors.map((error) => (
-                        <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                          {String(error)}
+                        <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                          {getErrorMessage(error)}
                         </p>
                       ))}
                     </div>

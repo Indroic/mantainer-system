@@ -9,6 +9,7 @@ import { AlertTriangleIcon, PackageIcon, PlusIcon, SearchIcon, Trash2Icon } from
 import { useState } from "react";
 import { useUpdateSparePartStock, useSoftDeleteSparePart } from "../hooks/use-spare-parts";
 import { cn } from "@mantainer-system/ui/lib/utils";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 interface SparePartsTableProps {
   parts: SparePartResponse[];
@@ -16,6 +17,8 @@ interface SparePartsTableProps {
 }
 
 export default function SparePartsTable({ parts, canEdit = true }: SparePartsTableProps) {
+  const { isAdmin, isSupervisor } = useAuth();
+  const canSeeFinancials = isAdmin || isSupervisor;
   const [selectedPart, setSelectedPart] = useState<SparePartResponse | null>(null);
   const [newStock, setNewStock] = useState<number>(0);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -52,7 +55,7 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
             <TableRow>
               <TableHead className="font-semibold text-slate-300">Código</TableHead>
               <TableHead className="font-semibold text-slate-300">Nombre</TableHead>
-              <TableHead className="font-semibold text-slate-300 text-right">Costo Unitario</TableHead>
+              {canSeeFinancials && <TableHead className="font-semibold text-slate-300 text-right">Costo Unitario</TableHead>}
               <TableHead className="font-semibold text-slate-300 text-right">Stock Mínimo</TableHead>
               <TableHead className="font-semibold text-slate-300 text-right">Stock Actual</TableHead>
               <TableHead className="font-semibold text-slate-300">Estado</TableHead>
@@ -62,7 +65,7 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
           <TableBody>
             {parts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 7 : 6} className="text-center py-10 text-slate-500 font-medium">
+                <TableCell colSpan={canSeeFinancials ? (canEdit ? 7 : 6) : (canEdit ? 6 : 5)} className="text-center py-10 text-slate-500 font-medium">
                   No se encontraron repuestos en el inventario.
                 </TableCell>
               </TableRow>
@@ -80,7 +83,7 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
                   >
                     <TableCell className="font-mono font-bold text-indigo-400">{part.code}</TableCell>
                     <TableCell className="font-medium text-slate-200">{part.name}</TableCell>
-                    <TableCell className="text-right font-mono text-slate-300">${part.unit_cost.toFixed(2)}</TableCell>
+                    {canSeeFinancials && <TableCell className="text-right font-mono text-slate-300">${part.unit_cost.toFixed(2)}</TableCell>}
                     <TableCell className="text-right font-mono text-slate-400">{part.stock_minimum}</TableCell>
                     <TableCell className={cn(
                       "text-right font-mono font-bold",

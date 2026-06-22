@@ -66,7 +66,7 @@ function DashboardComponent() {
       </div>
 
       {/* 2. Grid de Métricas Principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${(isAdmin || isSupervisor) ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-6`}>
         <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
@@ -106,18 +106,20 @@ function DashboardComponent() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Alertas de Stock</p>
-              <p className="font-mono text-2xl font-extrabold text-slate-100">{lowStockParts}</p>
-              <p className="text-[10px] text-slate-400">Repuestos por debajo del mínimo</p>
-            </div>
-            <div className="p-3 rounded-xl bg-rose-600/10 border border-rose-500/20 text-rose-400">
-              <PackageIcon className="size-5.5" />
-            </div>
-          </CardContent>
-        </Card>
+        {(isAdmin || isSupervisor) && (
+          <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
+            <CardContent className="p-5 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Alertas de Stock</p>
+                <p className="font-mono text-2xl font-extrabold text-slate-100">{lowStockParts}</p>
+                <p className="text-[10px] text-slate-400">Repuestos por debajo del mínimo</p>
+              </div>
+              <div className="p-3 rounded-xl bg-rose-600/10 border border-rose-500/20 text-rose-400">
+                <PackageIcon className="size-5.5" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* 3. Panel de Accesos Rápidos */}
