@@ -1,18 +1,21 @@
 FROM node:22-alpine
 RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copiar archivos de configuración del monorepo
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY packages/ ./packages/
+# El script de migración (scripts/migrate-auth.mjs) sólo depende de `pg`.
+# NO instalamos el workspace completo: el Dockerfile anterior copiaba únicamente
+# `packages/` y ejecutaba `pnpm install --frozen-lockfile`, pero el lockfile
+# incluye importers para `apps/server` y `apps/web` (ausentes en el contexto),
+# así que pnpm fallaba con ERR_PNPM_OUTDATED_LOCKFILE y la imagen nunca llegaba
+# a crear las tablas de Better Auth (incluida `jwks`).
+#
+# Instalamos pg de forma aislada y copiamos sólo el script: build rápido y
+# reproducible, sin acoplarnos al estado del monorepo.
+RUN npm install --no-save pg@^8.17.1
 
-# Instalar dependencias
-RUN pnpm install --frozen-lockfile
+COPY packages/db/scripts/migrate-auth.mjs ./migrate-auth.mjs
 
-# Sincroniza el esquema de Better Auth con Postgres mediante DDL idempotente
-# (scripts/migrate-auth.mjs). Evitamos `drizzle-kit push` porque su introspección
-# de la base compartida con Alembic fallaba en el contenedor. Este script sólo
-# crea/actualiza las tablas de Better Auth (incluida jwks) y no toca las de Alembic.
-CMD ["pnpm", "--filter", "@mantainer-system/db", "db:auth:sync"]
+# Aplica DDL idempotente EXCLUSIVAMENTE sobre las tablas de Better Auth
+# (user/session/account/verification/jwks). No toca las tablas de Alembic.
+CMD ["node", "migrate-auth.mjs"]
