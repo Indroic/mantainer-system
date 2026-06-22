@@ -107,7 +107,7 @@ services:
 
 volumes:
   postgres_data:
-    name: sgmm_postgres_data_v2
+    name: sgmm_postgres_data_v3
 
 networks:
   dokploy-network:
