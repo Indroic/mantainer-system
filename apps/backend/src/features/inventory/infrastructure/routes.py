@@ -120,3 +120,48 @@ async def query_spare_parts(
     use_case = QuerySparePartsUseCase(repo)
     return await use_case.execute(query)
 
+
+@router.get(
+    "/",
+    response_model=list[SparePartResponse],
+    dependencies=[
+        Depends(
+            require_roles(
+                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+            )
+        )
+    ],
+)
+async def get_spare_parts(
+    search: str | None = None,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> list[SparePartResponse]:
+    """Obtiene la lista de todas las piezas del inventario, opcionalmente filtradas por término de búsqueda."""
+    from hexcore.application.dtos.query import QueryRequestDTO
+    
+    query_dto = QueryRequestDTO(
+        limit=1000,
+        offset=0,
+        search=search,
+        search_fields=["code", "name"],
+        filters=[]
+    )
+    repo = SparePartRepository(uow)
+    use_case = QuerySparePartsUseCase(repo)
+    result = await use_case.execute(query_dto)
+    return [
+        SparePartResponse(
+            id=sp.id,
+            code=sp.code,
+            name=sp.name,
+            stock_minimum=sp.stock_minimum,
+            unit_cost=sp.unit_cost,
+            stock_current=sp.stock_current,
+            created_at=sp.created_at,
+            updated_at=sp.updated_at,
+            is_active=sp.is_active,
+        )
+        for sp in result.items
+    ]
+
+

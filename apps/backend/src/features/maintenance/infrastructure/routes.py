@@ -49,6 +49,80 @@ def get_maintenance_service(uow: SqlAlchemyUnitOfWork = Depends(get_uow)) -> Mai
     )
 
 
+async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> MaintenanceResponse:
+    from src.features.machine.infrastructure.repositories import MachineRepository
+    from src.features.inventory.infrastructure.repositories import SparePartRepository
+    from src.features.machine.application.dtos import MachineResponse as MachineDTOResponse
+    from src.features.inventory.application.dtos import SparePartResponse as SparePartDTOResponse
+
+    # 1. Obtener la Máquina asociada
+    machine_repo = MachineRepository(uow)
+    machine_dto = None
+    try:
+        machine = await machine_repo.get_by_id(order.machine_id)
+        machine_dto = MachineDTOResponse(
+            id=machine.id,
+            code=machine.code,
+            motor_serial=machine.motor_serial,
+            brand=machine.brand,
+            model=machine.model,
+            manufacture_year=machine.manufacture_year,
+            current_horometer=machine.current_horometer,
+            status=machine.status,
+            created_at=machine.created_at,
+            updated_at=machine.updated_at,
+            is_active=machine.is_active,
+        )
+    except Exception:
+        pass
+
+    # 2. Obtener y mapear repuestos
+    part_repo = SparePartRepository(uow)
+    spare_parts_dtos = []
+    for sp in order.spare_parts:
+        part_dto = None
+        try:
+            part = await part_repo.get_by_id(sp.spare_part_id)
+            part_dto = SparePartDTOResponse(
+                id=part.id,
+                code=part.code,
+                name=part.name,
+                stock_minimum=part.stock_minimum,
+                unit_cost=part.unit_cost,
+                stock_current=part.stock_current,
+                created_at=part.created_at,
+                updated_at=part.updated_at,
+                is_active=part.is_active,
+            )
+        except Exception:
+            pass
+            
+        spare_parts_dtos.append(
+            MaintenanceSparePartResponse(
+                id=sp.id,
+                spare_part_id=sp.spare_part_id,
+                quantity_requested=sp.quantity_requested,
+                quantity=sp.quantity_requested,
+                unit_cost_at_time=sp.unit_cost_at_time,
+                spare_part=part_dto,
+            )
+        )
+
+    return MaintenanceResponse(
+        id=order.id,
+        machine_id=order.machine_id,
+        description=order.description,
+        status=order.status,
+        assigned_mechanic_id=order.assigned_mechanic_id,
+        next_service_horometer=order.next_service_horometer,
+        spare_parts=spare_parts_dtos,
+        machine=machine_dto,
+        created_at=order.created_at,
+        updated_at=order.updated_at,
+        is_active=order.is_active,
+    )
+
+
 @router.post(
     "/",
     response_model=MaintenanceResponse,
@@ -66,7 +140,11 @@ async def create_order(
     """
     use_case = CreateMaintenanceUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
-    return await use_case.execute(command)
+    res = await use_case.execute(command)
+    
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(res.id)
+    return await _to_maintenance_response(order, uow)
 
 
 @router.put(
@@ -90,7 +168,11 @@ async def start_maintenance(
     """
     use_case = StartMaintenanceUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
-    return await use_case.execute(command)
+    res = await use_case.execute(command)
+    
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(res.id)
+    return await _to_maintenance_response(order, uow)
 
 
 @router.post(
@@ -113,7 +195,30 @@ async def add_spare_part(
     """
     use_case = AddSparePartToOrderUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
-    return await use_case.execute(command)
+    res = await use_case.execute(command)
+    
+    part_repo = SparePartRepository(uow)
+    part = await part_repo.get_by_id(res.spare_part_id)
+    from src.features.inventory.application.dtos import SparePartResponse as SparePartDTOResponse
+    part_dto = SparePartDTOResponse(
+        id=part.id,
+        code=part.code,
+        name=part.name,
+        stock_minimum=part.stock_minimum,
+        unit_cost=part.unit_cost,
+        stock_current=part.stock_current,
+        created_at=part.created_at,
+        updated_at=part.updated_at,
+        is_active=part.is_active,
+    )
+    return MaintenanceSparePartResponse(
+        id=res.id,
+        spare_part_id=res.spare_part_id,
+        quantity_requested=res.quantity_requested,
+        quantity=res.quantity_requested,
+        unit_cost_at_time=res.unit_cost_at_time,
+        spare_part=part_dto,
+    )
 
 
 @router.put(
@@ -138,7 +243,11 @@ async def liquidate_maintenance(
     """
     use_case = LiquidateMaintenanceUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
-    return await use_case.execute(command)
+    res = await use_case.execute(command)
+    
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(res.id)
+    return await _to_maintenance_response(order, uow)
 
 
 @router.post(
@@ -163,3 +272,173 @@ async def query_orders(
     repo = MaintenanceOrderRepository(uow)
     use_case = QueryMaintenanceOrdersUseCase(repo)
     return await use_case.execute(query)
+
+
+@router.get(
+    "/",
+    response_model=list[MaintenanceResponse],
+    dependencies=[
+        Depends(
+            require_roles(
+                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+            )
+        )
+    ],
+)
+async def get_orders(
+    status: str | None = None,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> list[MaintenanceResponse]:
+    """Obtiene la lista de todas las órdenes de trabajo, opcionalmente filtradas por estado."""
+    from hexcore.application.dtos.query import QueryRequestDTO, FilterConditionDTO, FilterOperator
+    
+    filters = []
+    if status:
+        filters.append(FilterConditionDTO(field="status", operator=FilterOperator.EQ, value=status))
+        
+    query_dto = QueryRequestDTO(
+        limit=1000,
+        offset=0,
+        filters=filters
+    )
+    repo = MaintenanceOrderRepository(uow)
+    use_case = QueryMaintenanceOrdersUseCase(repo)
+    result = await use_case.execute(query_dto)
+    
+    orders_dtos = []
+    for o in result.items:
+        orders_dtos.append(await _to_maintenance_response(o, uow))
+    return orders_dtos
+
+
+@router.get(
+    "/{order_id}",
+    response_model=MaintenanceResponse,
+    dependencies=[
+        Depends(
+            require_roles(
+                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+            )
+        )
+    ],
+)
+async def get_order(
+    order_id: str,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> MaintenanceResponse:
+    """Obtiene una orden de trabajo específica por su ID, de forma totalmente hidratada."""
+    from uuid import UUID
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(UUID(order_id))
+    return await _to_maintenance_response(order, uow)
+
+
+@router.post(
+    "/{order_id}/start",
+    response_model=MaintenanceResponse,
+)
+async def start_maintenance_path(
+    order_id: str,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    service: MaintenanceDomainService = Depends(get_maintenance_service),
+    current_user: UserMetadataResponse = Depends(
+        require_roles(
+            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+        )
+    ),
+) -> MaintenanceResponse:
+    """Cambia el estado de una orden de trabajo a EN_EJECUCION utilizando parámetros en la URL."""
+    from uuid import UUID
+    command = StartMaintenanceCommand(
+        order_id=UUID(order_id),
+        performed_by=current_user.better_auth_user_id
+    )
+    use_case = StartMaintenanceUseCase(service, uow)
+    await use_case.execute(command)
+    
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(UUID(order_id))
+    return await _to_maintenance_response(order, uow)
+
+
+@router.post(
+    "/{order_id}/spare-parts",
+    response_model=MaintenanceResponse,
+)
+async def add_spare_part_path(
+    order_id: str,
+    payload: dict,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    service: MaintenanceDomainService = Depends(get_maintenance_service),
+    current_user: UserMetadataResponse = Depends(
+        require_roles(
+            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+        )
+    ),
+) -> MaintenanceResponse:
+    """Asocia un repuesto requerido a una orden de trabajo utilizando parámetros en la URL y retorna el estado actualizado de la orden."""
+    from uuid import UUID
+    command = AddSparePartToOrderCommand(
+        order_id=UUID(order_id),
+        spare_part_id=UUID(payload["spare_part_id"]),
+        quantity=int(payload["quantity"]),
+        performed_by=current_user.better_auth_user_id
+    )
+    use_case = AddSparePartToOrderUseCase(service, uow)
+    await use_case.execute(command)
+    
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(UUID(order_id))
+    return await _to_maintenance_response(order, uow)
+
+
+@router.post(
+    "/{order_id}/liquidate",
+    response_model=MaintenanceResponse,
+)
+async def liquidate_maintenance_path(
+    order_id: str,
+    payload: dict,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    service: MaintenanceDomainService = Depends(get_maintenance_service),
+    current_user: UserMetadataResponse = Depends(
+        require_roles(
+            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+        )
+    ),
+) -> MaintenanceResponse:
+    """Liquida la orden de trabajo desde el frontend, actualizando primero el horómetro de la máquina si se proporciona."""
+    from uuid import UUID
+    
+    current_horometer = payload.get("current_horometer")
+    if current_horometer is not None:
+        order_repo = MaintenanceOrderRepository(uow)
+        order = await order_repo.get_by_id(UUID(order_id))
+        
+        from src.features.machine.infrastructure.repositories import MachineRepository
+        from src.features.machine.domain.services import MachineDomainService
+        from src.features.machine.application.use_cases.update_horometer import UpdateMachineHorometerUseCase
+        from src.features.machine.application.dtos import UpdateMachineHorometerCommand
+        
+        machine_repo = MachineRepository(uow)
+        machine_service = MachineDomainService(machine_repo)
+        update_horometer_use_case = UpdateMachineHorometerUseCase(machine_service, uow)
+        
+        horometer_cmd = UpdateMachineHorometerCommand(
+            machine_id=order.machine_id,
+            new_horometer=float(current_horometer),
+            performed_by=current_user.better_auth_user_id
+        )
+        await update_horometer_use_case.execute(horometer_cmd)
+
+    command = LiquidateMaintenanceCommand(
+        order_id=UUID(order_id),
+        performed_by=current_user.better_auth_user_id
+    )
+    use_case = LiquidateMaintenanceUseCase(service, uow)
+    await use_case.execute(command)
+    
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(UUID(order_id))
+    return await _to_maintenance_response(order, uow)
+

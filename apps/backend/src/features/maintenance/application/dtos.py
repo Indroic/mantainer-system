@@ -2,6 +2,8 @@ from datetime import datetime
 from uuid import UUID
 from hexcore.application.dtos.base import DTO
 from src.features.maintenance.domain.entities import MaintenanceStatus
+from src.features.machine.application.dtos import MachineResponse
+from src.features.inventory.application.dtos import SparePartResponse
 
 
 class CreateMaintenanceCommand(DTO):
@@ -32,7 +34,9 @@ class MaintenanceSparePartResponse(DTO):
     id: UUID
     spare_part_id: UUID
     quantity_requested: int
+    quantity: int | None = None
     unit_cost_at_time: float | None
+    spare_part: SparePartResponse | None = None
 
 
 class MaintenanceResponse(DTO):
@@ -43,6 +47,8 @@ class MaintenanceResponse(DTO):
     assigned_mechanic_id: UUID
     next_service_horometer: float | None
     spare_parts: list[MaintenanceSparePartResponse]
+    machine: MachineResponse | None = None
     created_at: datetime
     updated_at: datetime
     is_active: bool
+
