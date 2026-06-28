@@ -26,10 +26,10 @@ COPY src/ ./src/
 COPY alembic/ ./alembic/
 COPY alembic.ini config.py ./
 
-# Configurar variables de entorno por defecto para producción usando PostgreSQL
+# Configuración por defecto. DATABASE_URL es obligatorio y debe inyectarse en
+# tiempo de ejecución (docker-compose / Dokploy); config.py deriva de él las
+# URLs síncrona y asíncrona de SQLAlchemy.
 ENV PORT=8000
-ENV SQL_DATABASE_URL="postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db"
-ENV ASYNC_SQL_DATABASE_URL="postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db"
 
 EXPOSE 8000
 

@@ -1,5 +1,13 @@
 import asyncio
+import os
 from collections.abc import AsyncGenerator
+
+# DATABASE_URL es obligatorio en config.py. Durante las pruebas no usamos una
+# base de datos externa (cada test crea un engine SQLite en memoria), así que
+# definimos un valor por defecto antes de importar cualquier módulo que cargue
+# la configuración del proyecto.
+os.environ.setdefault("DATABASE_URL", "sqlite:///./sgmm.db")
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

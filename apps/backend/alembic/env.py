@@ -20,9 +20,26 @@ from src.features.audit.infrastructure.models import AuditLogModel
 # access to the values within the .ini file in use.
 config = context.config
 
-# Sobrescribimos o configuramos la URL de conexión síncrona SQLite
-# para que Alembic pueda crear las migraciones sin requerir driver asíncrono
-config.set_main_option("sqlalchemy.url", "sqlite:///./sgmm.db")
+
+def _resolve_sync_database_url() -> str:
+    """Resuelve la URL síncrona que Alembic usará para las migraciones.
+
+    En despliegue, ProjectConfig deriva esta URL del DATABASE_URL obligatorio,
+    de modo que `alembic upgrade head` aplique el esquema en la base de datos
+    real (PostgreSQL). En local, sin DATABASE_URL definido, la importación de
+    `config` falla y caemos a SQLite para poder autogenerar migraciones sin
+    necesidad de una base de datos en ejecución.
+    """
+    try:
+        from config import config as project_config
+
+        return project_config.sql_database_url
+    except Exception:
+        return "sqlite:///./sgmm.db"
+
+
+# Configuramos la URL de conexión síncrona usada por Alembic.
+config.set_main_option("sqlalchemy.url", _resolve_sync_database_url())
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -31,6 +48,20 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # target_metadata = mymodel.Base.metadata
 target_metadata = BaseModel.metadata
+
+
+def include_name(name, type_, parent_names):
+    """Limita Alembic EXCLUSIVAMENTE a las tablas gestionadas por la API.
+
+    La API comparte la base de datos con Better Auth (tablas user, session,
+    account, verification, jwks creadas por Drizzle). Sin este filtro,
+    `alembic revision --autogenerate` vería esas tablas como "sobrantes" y
+    generaría DROPs sobre ellas. Reflejamos solo las tablas presentes en
+    nuestro metadata para no interferir nunca con Better Auth.
+    """
+    if type_ == "table":
+        return name in target_metadata.tables
+    return True
 
 
 def run_migrations_offline() -> None:
@@ -51,6 +82,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -72,7 +104,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_name=include_name,
         )
 
         with context.begin_transaction():

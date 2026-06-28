@@ -1,25 +1,6 @@
 version: '3.8'
 
 services:
-  sgmm-postgres:
-    image: postgres:15-alpine
-    container_name: sgmm-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_secure_password
-      POSTGRES_DB: sgmm_auth_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - dokploy-network
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sgmm_auth_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   # Tarea de un solo disparo para ejecutar las migraciones de Better Auth (Drizzle)
   auth-migrate:
     build:
@@ -27,13 +8,10 @@ services:
       dockerfile: packages/db/Dockerfile.migrate
     container_name: auth-migrate
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
     networks:
       - dokploy-network
     restart: "no"
-    depends_on:
-      sgmm-postgres:
-        condition: service_healthy
 
   # Tarea de un solo disparo para ejecutar las migraciones de la API FastAPI (Alembic)
   backend-migrate:
@@ -42,15 +20,11 @@ services:
       dockerfile: Dockerfile
     container_name: backend-migrate
     environment:
-      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
-      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
     networks:
       - dokploy-network
     entrypoint: ["alembic", "upgrade", "head"]
     restart: "no"
-    depends_on:
-      sgmm-postgres:
-        condition: service_healthy
 
   auth-server:
     build:
@@ -60,7 +34,7 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
       - BETTER_AUTH_SECRET=better_auth_secret_32_characters_long_key
       - BETTER_AUTH_URL=http://localhost
     networks:
@@ -77,8 +51,7 @@ services:
     container_name: backend
     environment:
       - PORT=8000
-      - SQL_DATABASE_URL=postgresql://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
-      - ASYNC_SQL_DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_password@sgmm-postgres:5432/sgmm_auth_db
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
       - BETTER_AUTH_URL=http://auth-server:3000
       - JWKS_URL=http://auth-server:3000/api/auth/jwks
     networks:
@@ -104,10 +77,6 @@ services:
     depends_on:
       - backend
       - auth-server
-
-volumes:
-  postgres_data:
-    name: sgmm_postgres_data_v4
 
 networks:
   dokploy-network:
