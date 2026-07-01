@@ -53,7 +53,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                   className="transition-colors duration-150 hover:bg-slate-800/20 border-b border-slate-800/50"
                 >
                   <TableCell className="font-mono text-xs text-slate-400">
-                    {new Date(log.timestamp).toLocaleString()}
+                    {new Date(log.created_at).toLocaleString()}
                   </TableCell>
                   <TableCell className="font-bold text-slate-200 uppercase text-[10px] tracking-wider">
                     {log.entity_name}
@@ -73,7 +73,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                   </TableCell>
                   <TableCell className="font-medium text-slate-300 text-xs flex items-center gap-1.5 pt-4">
                     <UserIcon className="size-3.5 text-slate-500" />
-                    {log.performed_by}
+                    {log.performed_by_name || log.performed_by}
                   </TableCell>
                   <TableCell className="text-right">
                     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -110,29 +110,21 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-500 uppercase">Ejecutado por</p>
-                              <p className="text-slate-200">{selectedLog?.performed_by}</p>
+                              <p className="text-slate-200">{selectedLog?.performed_by_name || selectedLog?.performed_by}</p>
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-500 uppercase">Fecha y Hora</p>
                               <p className="text-slate-200 font-mono">
-                                {selectedLog ? new Date(selectedLog.timestamp).toLocaleString() : ""}
+                                {selectedLog ? new Date(selectedLog.created_at).toLocaleString() : ""}
                               </p>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Estado Anterior</p>
-                              <pre className="p-3.5 rounded-xl border border-slate-850 bg-slate-950/80 font-mono text-[10px] text-slate-400 overflow-x-auto max-h-60 leading-relaxed">
-                                {formatStateJSON(selectedLog?.previous_state || null)}
-                              </pre>
-                            </div>
-                            <div className="space-y-1.5">
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Estado Posterior</p>
-                              <pre className="p-3.5 rounded-xl border border-slate-850 bg-slate-950/80 font-mono text-[10px] text-indigo-300 overflow-x-auto max-h-60 leading-relaxed">
-                                {formatStateJSON(selectedLog?.new_state || null)}
-                              </pre>
-                            </div>
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Estado del Registro</p>
+                            <pre className="p-3.5 rounded-xl border border-slate-850 bg-slate-950/80 font-mono text-[10px] text-indigo-300 overflow-x-auto max-h-60 leading-relaxed">
+                              {formatStateJSON(selectedLog?.payload || null)}
+                            </pre>
                           </div>
 
                           <div className="flex pt-2">
