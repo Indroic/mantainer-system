@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOrders, useCreateOrder } from "@/features/mantenimiento/hooks/use-maintenance";
+import { useOrders, useCreateOrder, useMechanics } from "@/features/mantenimiento/hooks/use-maintenance";
 import { useMachines } from "@/features/maquinaria/hooks/use-machines";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import KanbanBoard from "@/features/mantenimiento/components/kanban-board";
 import { Button } from "@mantainer-system/ui/components/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
-import { Input } from "@mantainer-system/ui/components/input";
 import { Label } from "@mantainer-system/ui/components/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
+import { Textarea } from "@mantainer-system/ui/components/textarea";
 import { useForm } from "@tanstack/react-form";
 import { WrenchIcon, PlusIcon, ClipboardListIcon } from "lucide-react";
 import { useState } from "react";
@@ -30,7 +30,7 @@ function getErrorMessage(error: any): string {
 const orderSchema = z.object({
   machine_id: z.string().min(5, "Seleccione la maquinaria asociada"),
   description: z.string().min(5, "Describa el trabajo a realizar"),
-  assigned_mechanic_id: z.string().min(2, "Ingrese el ID del mecánico asignado"),
+  assigned_mechanic_id: z.string().min(1, "Seleccione el mecánico asignado"),
 });
 
 function MantenimientoIndexComponent() {
@@ -40,6 +40,7 @@ function MantenimientoIndexComponent() {
   // Queries
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
   const { data: machines = [] } = useMachines({ status: "ACTIVA" }); // Programar solo en máquinas activas
+  const { data: mechanics = [] } = useMechanics();
 
   // Mutación
   const createOrderMutation = useCreateOrder();
@@ -48,7 +49,7 @@ function MantenimientoIndexComponent() {
     defaultValues: {
       machine_id: "",
       description: "",
-      assigned_mechanic_id: "MEC-01", // Por defecto
+      assigned_mechanic_id: "", // El usuario debe seleccionar un mecánico real
     },
     onSubmit: async ({ value }) => {
       await createOrderMutation.mutateAsync(value, {
@@ -140,13 +141,14 @@ function MantenimientoIndexComponent() {
                   {(field) => (
                     <div className="space-y-2">
                       <Label htmlFor={field.name} className="text-slate-300 text-xs">Descripción del Servicio / Falla</Label>
-                      <Input
+                      <Textarea
                         id={field.name}
                         name={field.name}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         placeholder="Ej. Cambio de filtros de aceite motor a las 500 hrs..."
+                        rows={4}
                         className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                       />
                       {field.state.meta.errors.map((error) => (
@@ -158,19 +160,30 @@ function MantenimientoIndexComponent() {
                   )}
                 </form.Field>
 
-                {/* ID Mecánico Responsable */}
+                {/* Mecánico Asignado */}
                 <form.Field name="assigned_mechanic_id">
                   {(field) => (
                     <div className="space-y-2">
-                      <Label htmlFor={field.name} className="text-slate-300 text-xs">Código de Técnico / Mecánico</Label>
-                      <Input
-                        id={field.name}
-                        name={field.name}
+                      <Label htmlFor={field.name} className="text-slate-300 text-xs">Mecánico Asignado</Label>
+                      <Select
                         value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                      />
+                        onValueChange={(val) => field.handleChange(val)}
+                      >
+                        <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
+                          <SelectValue placeholder="Seleccione un mecánico" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl">
+                          {mechanics.length === 0 ? (
+                            <SelectItem value="none" disabled>No hay mecánicos registrados</SelectItem>
+                          ) : (
+                            mechanics.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                       {field.state.meta.errors.map((error) => (
                         <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
                           {getErrorMessage(error)}
