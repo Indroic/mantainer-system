@@ -24,6 +24,7 @@ from src.features.maintenance.infrastructure.models import (
 )
 from src.features.alerts.infrastructure.models import AlertModel
 from src.features.audit.infrastructure.models import AuditLogModel
+from src.shared.infrastructure.database.better_auth_tables import better_auth_metadata
 
 
 @pytest.fixture(scope="session")
@@ -44,12 +45,14 @@ async def test_engine():
     # Creamos todas las tablas
     async with engine.begin() as conn:
         await conn.run_sync(BaseModel.metadata.create_all)
+        await conn.run_sync(better_auth_metadata.create_all)
 
     yield engine
 
     # Destruimos las tablas
     async with engine.begin() as conn:
         await conn.run_sync(BaseModel.metadata.drop_all)
+        await conn.run_sync(better_auth_metadata.drop_all)
 
     await engine.dispose()
 

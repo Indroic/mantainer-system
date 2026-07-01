@@ -9,8 +9,25 @@ from src.features.audit.application.use_cases.query_audit_logs import (
 from src.features.audit.infrastructure.repositories import AuditLogRepository
 from src.features.user.domain.entities import UserRole
 from src.shared.infrastructure.database.db import get_uow
+from src.shared.infrastructure.database.user_lookup import resolve_user_names
 
 router = APIRouter(prefix="/audit-logs", tags=["Forensic Audit Logs"])
+
+
+def _build_audit_log_response(item, performed_by_name: str | None) -> AuditLogResponse:
+    import json
+
+    return AuditLogResponse(
+        id=item.id,
+        entity_name=item.entity_name,
+        entity_id=item.entity_id,
+        action=item.action,
+        payload=json.dumps(item.payload) if isinstance(item.payload, dict) else str(item.payload),
+        performed_by=item.performed_by,
+        performed_by_name=performed_by_name,
+        created_at=item.created_at,
+        is_active=item.is_active,
+    )
 
 
 @router.post(
@@ -43,7 +60,6 @@ async def get_audit_logs(
 ) -> list[AuditLogResponse]:
     """Obtiene la lista de bitácoras forenses de auditoría, opcionalmente filtradas."""
     from hexcore.application.dtos.query import FilterConditionDTO, FilterOperator
-    import json
 
     filters = []
     if entity_name:
@@ -59,18 +75,12 @@ async def get_audit_logs(
     repo = AuditLogRepository(uow)
     use_case = QueryAuditLogsUseCase(repo)
     result = await use_case.execute(query_dto)
-    
+
+    performed_by_ids = {item.performed_by for item in result.items}
+    names = await resolve_user_names(uow.session, performed_by_ids)
+
     return [
-        AuditLogResponse(
-            id=item.id,
-            entity_name=item.entity_name,
-            entity_id=item.entity_id,
-            action=item.action,
-            payload=json.dumps(item.payload) if isinstance(item.payload, dict) else str(item.payload),
-            performed_by=item.performed_by,
-            created_at=item.created_at,
-            is_active=item.is_active,
-        )
+        _build_audit_log_response(item, names.get(item.performed_by))
         for item in result.items
     ]
 

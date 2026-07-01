@@ -18,5 +18,6 @@ class AuditLogResponse(DTO):
     action: str
     payload: str
     performed_by: str
+    performed_by_name: str | None = None
     created_at: datetime
     is_active: bool

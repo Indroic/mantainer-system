@@ -51,6 +51,10 @@ export function createAuth() {
       // vía /create-admin (clave de creación) usando auth.api.createUser, que no
       // pasa por este guard.
       disableSignUp: true,
+      // Antes dependíamos del default implícito de Better Auth (8). Lo fijamos
+      // explícitamente para que quede documentado y no se rompa si la librería
+      // cambia su default en una futura versión.
+      minPasswordLength: 8,
     },
     secret: BETTER_AUTH_SECRET,
     baseURL: BETTER_AUTH_URL,
@@ -67,6 +71,16 @@ export function createAuth() {
     },
     hooks: {
       before: async (ctx) => {
+        if (ctx.path === "/admin/create-user") {
+          const body = ctx.body as { name?: string } | undefined;
+          const NAME_PATTERN = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ' -]+$/;
+          if (body?.name && !NAME_PATTERN.test(body.name)) {
+            throw new APIError("BAD_REQUEST", {
+              message: "El nombre solo puede contener letras, espacios, apóstrofes y guiones."
+            });
+          }
+        }
+
         if (ctx.path === "/admin/remove-user" || ctx.path === "/admin/set-role") {
           const body = ctx.body as { userId?: string; role?: string } | undefined;
           if (body?.userId) {

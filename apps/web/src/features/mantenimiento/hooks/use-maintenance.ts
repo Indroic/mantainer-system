@@ -5,6 +5,7 @@ import type {
   CreateMaintenanceOrderCommand,
   AddSparePartToOrderCommand,
   LiquidateOrderCommand,
+  MechanicResponse,
 } from "../types";
 import { toast } from "sonner";
 
@@ -19,6 +20,16 @@ export function useOrders(filters?: { status?: string }) {
       return await apiClient.get<MaintenanceOrderResponse[]>("/maintenance/", { params });
     },
     staleTime: 10 * 1000, // Refrescar rápido debido al flujo en tiempo real del taller
+  });
+}
+
+export function useMechanics() {
+  return useQuery({
+    queryKey: ["mechanics"],
+    queryFn: async () => {
+      return await apiClient.get<MechanicResponse[]>("/user-metadata/mechanics");
+    },
+    staleTime: 60 * 1000,
   });
 }
 

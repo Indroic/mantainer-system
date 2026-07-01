@@ -19,3 +19,8 @@ class UserMetadataResponse(DTO):
     created_at: datetime
     updated_at: datetime
     is_active: bool
+
+
+class MechanicResponse(DTO):
+    id: UUID
+    name: str

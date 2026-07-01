@@ -1,6 +1,11 @@
 import type { MachineResponse } from "../maquinaria/types";
 import type { SparePartResponse } from "../repuestos/types";
 
+export interface MechanicResponse {
+  id: string;
+  name: string;
+}
+
 export type OrderStatus = "PROGRAMADO" | "EN_EJECUCION" | "LIQUIDADO";
 
 export interface OrderSparePartResponse {

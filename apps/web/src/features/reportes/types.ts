@@ -3,10 +3,11 @@ export interface AuditLogResponse {
   entity_name: string;
   entity_id: string;
   action: string;
+  payload: string;
   performed_by: string;
-  timestamp: string;
-  previous_state: string | null;
-  new_state: string | null;
+  performed_by_name: string | null;
+  created_at: string;
+  is_active: boolean;
 }
 
 export interface CostReportItem {
