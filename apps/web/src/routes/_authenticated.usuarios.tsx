@@ -21,10 +21,15 @@ export const Route = createFileRoute("/_authenticated/usuarios")({
   component: UsuariosComponent,
 });
 
+const NAME_PATTERN = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ' -]+$/;
+
 const userSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  name: z
+    .string()
+    .min(2, "El nombre debe tener al menos 2 caracteres")
+    .regex(NAME_PATTERN, "El nombre solo puede contener letras, espacios, apóstrofes y guiones"),
   email: z.string().email("Correo electrónico inválido"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   role: z.enum(["admin", "supervisor", "mechanic"]),
 });
 
@@ -262,7 +267,7 @@ function UsuariosComponent() {
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="•••••••• (mínimo 8 caracteres)"
                       className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
                     />
                     {field.state.meta.errors.map((error) => (
