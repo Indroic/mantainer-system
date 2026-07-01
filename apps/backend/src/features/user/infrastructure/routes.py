@@ -3,6 +3,7 @@ from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.dependencies import CurrentUser, get_current_user, require_roles
 from src.features.user.application.dtos import (
     CreateOrUpdateUserMetadataCommand,
+    MechanicResponse,
     UserMetadataResponse,
 )
 from src.features.user.application.use_cases.create_or_update_metadata import (
@@ -15,6 +16,7 @@ from src.features.user.domain.entities import UserRole
 from src.features.user.domain.services import UserMetadataDomainService
 from src.features.user.infrastructure.repositories import UserRepository
 from src.shared.infrastructure.database.db import get_uow
+from src.shared.infrastructure.database.user_lookup import resolve_user_names
 
 router = APIRouter(prefix="/user-metadata", tags=["User Metadata"])
 
@@ -49,6 +51,31 @@ async def create_or_update_metadata(
     use_case = CreateOrUpdateUserMetadataUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
     return await use_case.execute(command)
+
+
+@router.get(
+    "/mechanics",
+    response_model=list[MechanicResponse],
+    dependencies=[
+        Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR]))
+    ],
+)
+async def list_mechanics(
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> list[MechanicResponse]:
+    """Lista los usuarios con rol Mecánico, para poblar selectores de asignación.
+
+    Restringido a Administradores y Supervisores (mismo criterio que programar OT).
+    """
+    repo = UserRepository(uow)
+    mechanics = await repo.list_by_role(UserRole.MECANICO)
+
+    names = await resolve_user_names(uow.session, [m.better_auth_user_id for m in mechanics])
+
+    return [
+        MechanicResponse(id=m.id, name=names.get(m.better_auth_user_id, m.better_auth_user_id))
+        for m in mechanics
+    ]
 
 
 @router.get(

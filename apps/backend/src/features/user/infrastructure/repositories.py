@@ -3,8 +3,9 @@ from hexcore.domain.uow import IUnitOfWork
 from hexcore.infrastructure.repositories.implementations import (
     SQLAlchemyCommonImplementationsRepo,
 )
+from hexcore.infrastructure.repositories.utils import to_entity_from_model_or_document
 from hexcore.types import FieldResolversType, FieldSerializersType
-from src.features.user.domain.entities import UserMetadata
+from src.features.user.domain.entities import UserMetadata, UserRole
 from src.features.user.domain.exceptions import UserMetadataNotFoundException
 from src.features.user.infrastructure.models import UserMetadataModel
 
@@ -46,3 +47,14 @@ class UserRepository(
         if model:
             return self.to_entity(model)
         return None
+
+    async def list_by_role(self, role: UserRole) -> list[UserMetadata]:
+        """Lista todos los metadatos de usuario que tienen el rol dado."""
+        stmt = select(self.model_cls).where(self.model_cls.role == role.value)
+        result = await self.session.execute(stmt)
+        return [
+            await to_entity_from_model_or_document(
+                model, self.entity_cls, self.fields_resolvers
+            )
+            for model in result.scalars().all()
+        ]
