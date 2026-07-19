@@ -3,7 +3,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useMachines } from "@/features/maquinaria/hooks/use-machines";
 import { useOrders } from "@/features/mantenimiento/hooks/use-maintenance";
 import { useSpareParts } from "@/features/repuestos/hooks/use-spare-parts";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@mantainer-system/ui/components/card";
+import { Card, CardContent } from "@mantainer-system/ui/components/card";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import {
   CpuIcon,
@@ -13,184 +13,212 @@ import {
   ArrowRightIcon,
   TrendingUpIcon,
   TruckIcon,
+  type LucideIcon,
 } from "lucide-react";
+import { cn } from "@mantainer-system/ui/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardComponent,
 });
 
+// ── Componente reutilizable para métricas ──────────────────────────────────────
+interface MetricCardProps {
+  label: string;
+  value: number | string;
+  subtitle: string;
+  icon: LucideIcon;
+  iconClass: string;
+}
+
+function MetricCard({ label, value, subtitle, icon: Icon, iconClass }: MetricCardProps) {
+  return (
+    <Card className="border-border bg-card rounded-2xl">
+      <CardContent className="p-5 flex items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{label}</p>
+          <p className="font-mono text-2xl font-extrabold text-foreground">{value}</p>
+          <p className="text-[10px] text-muted-foreground/70 truncate">{subtitle}</p>
+        </div>
+        <div className={cn("p-3 rounded-xl shrink-0", iconClass)}>
+          <Icon className="size-5" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Componente reutilizable para módulos de acceso rápido ──────────────────────
+interface ModuleCardProps {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  iconClass: string;
+  linkTo: string;
+  linkLabel: string;
+  hoverClass: string;
+}
+
+function ModuleCard({ title, description, icon: Icon, iconClass, linkTo, linkLabel, hoverClass }: ModuleCardProps) {
+  return (
+    <Card className={cn("group flex flex-col border-border bg-card transition-all duration-300 rounded-2xl hover:border-opacity-60", hoverClass)}>
+      <CardContent className="p-5 flex flex-col gap-3 h-full">
+        <div className="flex items-center gap-2">
+          <div className={cn("p-2 rounded-xl", iconClass)}>
+            <Icon className="size-4" />
+          </div>
+          <p className="text-sm font-bold text-foreground">{title}</p>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed flex-1">{description}</p>
+        <Link
+          to={linkTo as any}
+          className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline mt-auto"
+        >
+          {linkLabel}
+          <ArrowRightIcon className="size-3.5" />
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Dashboard principal ────────────────────────────────────────────────────────
 function DashboardComponent() {
   const { user, roleLabel, isAdmin, isSupervisor } = useAuth();
-  
-  // Consultar caches de forma optimizada
+
   const { data: machines = [], isLoading: machinesLoading } = useMachines();
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
   const { data: spareParts = [], isLoading: partsLoading } = useSpareParts();
 
   const activeMachines = machines.filter((m) => m.status === "ACTIVA").length;
   const inMaintenance = machines.filter((m) => m.status === "EN_MANTENIMIENTO").length;
-
   const pendingOrders = orders.filter((o) => o.status === "PROGRAMADO").length;
   const executingOrders = orders.filter((o) => o.status === "EN_EJECUCION").length;
-
   const lowStockParts = spareParts.filter((p) => p.stock_current <= p.stock_minimum).length;
 
   const isLoading = machinesLoading || ordersLoading || partsLoading;
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64 rounded bg-default/50" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Skeleton className="h-28 rounded bg-default/50" />
-          <Skeleton className="h-28 rounded bg-default/50" />
-          <Skeleton className="h-28 rounded bg-default/50" />
-          <Skeleton className="h-28 rounded bg-default/50" />
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-56 rounded-lg bg-default/50" />
+          <Skeleton className="h-4 w-72 rounded bg-default/40" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl bg-default/50" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 rounded-2xl bg-default/50" />
+          ))}
         </div>
       </div>
     );
   }
 
+  // Definición de métricas como datos
+  const metrics: MetricCardProps[] = [
+    {
+      label: "Activos en Taller",
+      value: machines.length,
+      subtitle: `${activeMachines} Activos · ${inMaintenance} Mantenimiento`,
+      icon: TruckIcon,
+      iconClass: "bg-accent/10 border border-accent/20 text-accent",
+    },
+    {
+      label: "Órdenes Programadas",
+      value: pendingOrders,
+      subtitle: "Intervenciones técnicas en espera",
+      icon: ClipboardListIcon,
+      iconClass: "bg-amber-500/10 border border-amber-500/20 text-amber-400",
+    },
+    {
+      label: "Mantenimientos Activos",
+      value: executingOrders,
+      subtitle: "Trabajos ejecutándose en caliente",
+      icon: WrenchIcon,
+      iconClass: "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400",
+    },
+    ...(isAdmin || isSupervisor
+      ? [
+          {
+            label: "Alertas de Stock",
+            value: lowStockParts,
+            subtitle: "Repuestos por debajo del mínimo",
+            icon: PackageIcon,
+            iconClass: "bg-rose-500/10 border border-rose-500/20 text-rose-400",
+          } satisfies MetricCardProps,
+        ]
+      : []),
+  ];
+
+  // Definición de módulos como datos
+  const modules: ModuleCardProps[] = [
+    {
+      title: "Catálogo de Maquinarias",
+      description: "Visualiza la flota de activos, actualiza horómetros e inspecciona historiales técnicos.",
+      icon: CpuIcon,
+      iconClass: "bg-accent/10 text-accent",
+      linkTo: "/maquinaria",
+      linkLabel: "Ingresar al catálogo",
+      hoverClass: "hover:border-accent/30",
+    },
+    {
+      title: "Flujo de Mantenimientos",
+      description: "Controla el tablero de órdenes de trabajo o ejecuta reparaciones como mecánico.",
+      icon: WrenchIcon,
+      iconClass: "bg-amber-500/10 text-amber-400",
+      linkTo: "/mantenimiento",
+      linkLabel: "Abrir tablero de OTs",
+      hoverClass: "hover:border-amber-500/30",
+    },
+    ...(isAdmin || isSupervisor
+      ? [
+          {
+            title: "Informes Financieros",
+            description: "Inspecciona la inversión de repuestos por activo o gestiona el inventario del almacén.",
+            icon: TrendingUpIcon,
+            iconClass: "bg-cyan-500/10 text-cyan-400",
+            linkTo: "/reportes",
+            linkLabel: "Ver reportes financieros",
+            hoverClass: "hover:border-cyan-500/30",
+          } satisfies ModuleCardProps,
+        ]
+      : []),
+  ];
+
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* 1. Mensaje de Bienvenida */}
-      <div className="flex flex-col gap-1.5">
+      {/* 1. Bienvenida */}
+      <div className="flex flex-col gap-1">
         <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
           Hola, {user?.name || "Técnico"}
         </h2>
         <p className="text-muted-foreground text-sm font-medium">
-          Bienvenido al centro operativo del taller. Rol: <span className="text-foreground uppercase font-bold">{roleLabel || "Mecánico"}</span>
+          Centro operativo del taller · Rol:{" "}
+          <span className="text-foreground font-bold uppercase">{roleLabel || "Mecánico"}</span>
         </p>
       </div>
 
-      {/* 2. Grid de Métricas Principales */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${(isAdmin || isSupervisor) ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-6`}>
-        <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
-          <CardContent className="p-5 flex items-center justify-between h-full">
-            <div className="space-y-1.5">
-              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Activos en Taller</p>
-              <p className="font-mono text-2xl font-extrabold text-foreground">{machines.length}</p>
-              <p className="text-[10px] text-muted/80">{activeMachines} Activos · {inMaintenance} Mantenimiento</p>
-            </div>
-            <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 text-accent shrink-0">
-              <TruckIcon className="size-5.5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
-          <CardContent className="p-5 flex items-center justify-between h-full">
-            <div className="space-y-1.5">
-              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Órdenes Programadas</p>
-              <p className="font-mono text-2xl font-extrabold text-foreground">{pendingOrders}</p>
-              <p className="text-[10px] text-muted/80">Intervenciones técnicas en espera</p>
-            </div>
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
-              <ClipboardListIcon className="size-5.5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
-          <CardContent className="p-5 flex items-center justify-between h-full">
-            <div className="space-y-1.5">
-              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Mantenimientos Activos</p>
-              <p className="font-mono text-2xl font-extrabold text-foreground">{executingOrders}</p>
-              <p className="text-[10px] text-muted/80">Trabajos ejecutándose en caliente</p>
-            </div>
-            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
-              <WrenchIcon className="size-5.5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {(isAdmin || isSupervisor) && (
-          <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
-            <CardContent className="p-5 flex items-center justify-between h-full">
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Alertas de Stock</p>
-                <p className="font-mono text-2xl font-extrabold text-foreground">{lowStockParts}</p>
-                <p className="text-[10px] text-muted/80">Repuestos por debajo del mínimo</p>
-              </div>
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
-                <PackageIcon className="size-5.5" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {/* 2. Métricas */}
+      <div className={cn(
+        "grid grid-cols-1 sm:grid-cols-2 gap-6",
+        (isAdmin || isSupervisor) ? "lg:grid-cols-4" : "lg:grid-cols-3"
+      )}>
+        {metrics.map((metric) => (
+          <MetricCard key={metric.label} {...metric} />
+        ))}
       </div>
 
-      {/* 3. Panel de Accesos Rápidos */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Acciones y Módulos</h3>
+      {/* 3. Módulos de acceso rápido */}
+      <div className="space-y-3">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Acciones y Módulos</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Módulo Maquinaria */}
-          <Card className="group flex flex-col justify-between h-full border-border bg-surface/30 hover:bg-surface hover:border-accent/30 transition-all duration-300 rounded-2xl">
-            <CardHeader className="p-5 pb-3">
-              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                <CpuIcon className="size-5 text-accent" />
-                Catálogo de Maquinarias
-              </CardTitle>
-              <CardDescription className="text-xs text-muted leading-relaxed">
-                Visualiza la flota de activos, actualiza horómetros en caliente e inspecciona historiales.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-5 pt-0 mt-auto">
-              <Link
-                to="/maquinaria"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
-              >
-                Ingresar al catálogo
-                <ArrowRightIcon className="size-4" />
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* Módulo Mantenimiento */}
-          <Card className="group flex flex-col justify-between h-full border-border bg-surface/30 hover:bg-surface hover:border-amber-500/30 transition-all duration-300 rounded-2xl">
-            <CardHeader className="p-5 pb-3">
-              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                <WrenchIcon className="size-5 text-amber-400" />
-                Flujo de Mantenimientos
-              </CardTitle>
-              <CardDescription className="text-xs text-muted leading-relaxed">
-                Controla el tablero de órdenes de trabajo del taller o ejecuta reparaciones como mecánico.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-5 pt-0 mt-auto">
-              <Link
-                to="/mantenimiento"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:underline"
-              >
-                Abrir tablero de OTs
-                <ArrowRightIcon className="size-4" />
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* Módulos Administrativos */}
-          {(isAdmin || isSupervisor) && (
-            <Card className="group flex flex-col justify-between h-full border-border bg-surface/30 hover:bg-surface hover:border-cyan-500/30 transition-all duration-300 rounded-2xl">
-              <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                  <TrendingUpIcon className="size-5 text-cyan-400" />
-                  Informes Financieros
-                </CardTitle>
-                <CardDescription className="text-xs text-muted leading-relaxed">
-                  Inspecciona la inversión de repuestos por activo o gestiona el inventario físico del almacén.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 pt-0 mt-auto">
-                <Link
-                  to="/reportes"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:underline"
-                >
-                  Ver reportes financieros
-                  <ArrowRightIcon className="size-4" />
-                </Link>
-              </CardContent>
-            </Card>
-          )}
+          {modules.map((mod) => (
+            <ModuleCard key={mod.title} {...mod} />
+          ))}
         </div>
       </div>
     </div>
