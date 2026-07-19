@@ -69,7 +69,7 @@ export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
         e.stopPropagation();
         form.handleSubmit();
       }}
-      className="space-y-6 max-w-2xl bg-surface/40 backdrop-blur-md border border-border p-8 rounded-2xl shadow-xl"
+      className="space-y-6 w-full"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Código */}

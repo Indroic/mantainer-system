@@ -113,7 +113,7 @@ function MaquinariaIndexComponent() {
       <Modal isOpen={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <Modal.Backdrop variant="blur">
           <Modal.Container size="cover">
-            <Modal.Dialog className="max-w-4xl bg-background border border-border text-foreground shadow-2xl p-6 rounded-2xl">
+            <Modal.Dialog className="max-w-2xl bg-background border border-border text-foreground shadow-2xl p-6 rounded-2xl">
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading className="text-2xl font-bold flex items-center gap-2">
@@ -124,7 +124,7 @@ function MaquinariaIndexComponent() {
                   Inscribe un nuevo activo pesado al inventario del taller operativo
                 </p>
               </Modal.Header>
-              <Modal.Body className="p-0 pt-4 flex justify-center">
+              <Modal.Body className="p-0 pt-4">
                 <MachineForm
                   onSuccess={() => setIsCreateOpen(false)}
                   onCancel={() => setIsCreateOpen(false)}
