@@ -23,8 +23,10 @@ import {
   UserIcon,
   MenuIcon,
   UsersIcon,
+  SunIcon,
+  MoonIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import NotificationCenter from "@/features/alertas/components/notification-center";
 
@@ -56,6 +58,29 @@ function AuthenticatedLayout() {
   const { user, roleLabel, isAdmin, isSupervisor, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  // -----------------------------------------------------------------
+  // Toggle de Tema Dark / Light — HeroUI v3: class="dark" + data-theme
+  // -----------------------------------------------------------------
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("sgmm-theme");
+    return saved ? saved === "dark" : true; // dark por defecto
+  });
+
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.add("dark");
+      html.setAttribute("data-theme", "dark");
+    } else {
+      html.classList.remove("dark");
+      html.setAttribute("data-theme", "light");
+    }
+    localStorage.setItem("sgmm-theme", isDark ? "dark" : "light");
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((prev) => !prev);
 
   const handleLogout = async () => {
     try {
@@ -180,6 +205,16 @@ function AuthenticatedLayout() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Toggle Dark / Light */}
+            <button
+              id="theme-toggle"
+              onClick={toggleTheme}
+              className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/40 hover:bg-slate-700/80 transition-colors text-slate-400 hover:text-slate-100"
+              title={isDark ? "Cambiar a modo Claro" : "Cambiar a modo Oscuro"}
+            >
+              {isDark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
+            </button>
+
             {/* Campana de Notificaciones de Alertas en Tiempo Real */}
             <NotificationCenter />
 

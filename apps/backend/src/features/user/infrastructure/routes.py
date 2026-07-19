@@ -73,7 +73,11 @@ async def list_mechanics(
     names = await resolve_user_names(uow.session, [m.better_auth_user_id for m in mechanics])
 
     return [
-        MechanicResponse(id=m.id, name=names.get(m.better_auth_user_id, m.better_auth_user_id))
+        MechanicResponse(
+            id=m.id,
+            better_auth_user_id=m.better_auth_user_id,
+            name=names.get(m.better_auth_user_id, m.better_auth_user_id),
+        )
         for m in mechanics
     ]
 

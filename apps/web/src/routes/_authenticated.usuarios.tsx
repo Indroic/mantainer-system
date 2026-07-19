@@ -12,7 +12,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Badge } from "@mantainer-system/ui/components/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
 import { useForm } from "@tanstack/react-form";
-import { UsersIcon, PlusIcon, Trash2Icon, AlertTriangleIcon, MailIcon, ShieldCheckIcon, LockIcon } from "lucide-react";
+import { UsersIcon, PlusIcon, Trash2Icon, AlertTriangleIcon, MailIcon, ShieldCheckIcon, LockIcon, PencilIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
@@ -46,6 +46,10 @@ const getErrorMessage = (err: any): string => {
 function UsuariosComponent() {
   const { isAdmin, user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedEditUser, setSelectedEditUser] = useState<any>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const queryClient = useQueryClient();
 
   // 1. Obtener la lista de usuarios usando react-query y el plugin adminClient
@@ -71,8 +75,9 @@ function UsuariosComponent() {
         email: values.email,
         password: values.password,
         name: values.name,
-        role: values.role,
+        role: values.role as any,
       });
+
       if (res.error) {
         throw new Error(res.error.message || "Error al crear usuario");
       }
@@ -92,8 +97,9 @@ function UsuariosComponent() {
     mutationFn: async ({ userId, role }: { userId: string; role: "admin" | "supervisor" | "mechanic" }) => {
       const res = await authClient.admin.setRole({
         userId,
-        role,
+        role: role as any,
       });
+
       if (res.error) {
         throw new Error(res.error.message || "Error al actualizar rol");
       }
@@ -125,6 +131,47 @@ function UsuariosComponent() {
     },
     onError: (err: any) => {
       toast.error(err.message || "Error al eliminar usuario");
+    },
+  });
+
+  // 5. Mutación para actualizar credenciales de un usuario
+  const updateCredentialsMutation = useMutation({
+    mutationFn: async ({ userId, email, password }: { userId: string; email?: string; password?: string }) => {
+      if (email && email.trim() !== "") {
+        const res = await authClient.admin.updateUser({
+          userId,
+          data: {
+            email: email.trim(),
+          },
+        });
+
+        if (res.error) {
+          throw new Error(res.error.message || "Error al actualizar correo");
+        }
+      }
+      if (password && password.trim() !== "") {
+        if (password.length < 8) {
+          throw new Error("La contraseña debe tener al menos 8 caracteres");
+        }
+        const res = await authClient.admin.setUserPassword({
+          userId,
+          newPassword: password.trim(),
+        });
+        if (res.error) {
+          throw new Error(res.error.message || "Error al actualizar contraseña");
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success("Credenciales actualizadas exitosamente");
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      setEditDialogOpen(false);
+      setEditEmail("");
+      setEditPassword("");
+      setSelectedEditUser(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Error al actualizar credenciales");
     },
   });
 
@@ -326,7 +373,84 @@ function UsuariosComponent() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Diálogo para Editar Credenciales de Usuario */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-md shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <PencilIcon className="size-5 text-indigo-400" />
+                Editar Credenciales de {selectedEditUser?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!selectedEditUser) return;
+                await updateCredentialsMutation.mutateAsync({
+                  userId: selectedEditUser.id,
+                  email: editEmail,
+                  password: editPassword,
+                });
+              }}
+              className="space-y-4 mt-2"
+            >
+              {/* Nuevo Email */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-email" className="text-slate-300 text-xs">Correo Electrónico</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="Ej. nuevo-correo@taller.com"
+                  className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
+                />
+                <p className="text-[10px] text-slate-400">Opcional. Deja en blanco para no modificar.</p>
+              </div>
+
+              {/* Nueva Contraseña */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-password" className="text-slate-300 text-xs">Nueva Contraseña</Label>
+                <Input
+                  id="edit-password"
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="•••••••• (mínimo 8 caracteres)"
+                  className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
+                />
+                <p className="text-[10px] text-slate-400">Opcional. Deja en blanco para no modificar.</p>
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-slate-800/80">
+                <Button
+                  type="submit"
+                  disabled={updateCredentialsMutation.isPending}
+                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold"
+                >
+                  {updateCredentialsMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditDialogOpen(false);
+                    setEditEmail("");
+                    setEditPassword("");
+                    setSelectedEditUser(null);
+                  }}
+                  className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
+
 
       {/* Tabla de Usuarios */}
       <Card className="border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
@@ -386,7 +510,8 @@ function UsuariosComponent() {
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4">
-                        {getRoleBadge(item.role)}
+                        {getRoleBadge(item.role || "")}
+
                       </TableCell>
                       <TableCell className="px-6 py-4">
                         <Select
@@ -415,19 +540,34 @@ function UsuariosComponent() {
                             <LockIcon className="size-4 text-slate-600" />
                           </div>
                         ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/30 transition-all duration-200 size-8"
-                            onClick={() => {
-                              if (confirm(`¿Está seguro de eliminar de forma permanente al usuario "${item.name}"?`)) {
-                                deleteUserMutation.mutate(item.id);
-                              }
-                            }}
-                            disabled={deleteUserMutation.isPending}
-                          >
-                            <Trash2Icon className="size-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="rounded-lg text-indigo-400 hover:text-indigo-200 hover:bg-indigo-950/30 border border-transparent hover:border-indigo-900/30 transition-all duration-200 size-8"
+                              onClick={() => {
+                                setSelectedEditUser(item);
+                                setEditEmail(item.email);
+                                setEditPassword("");
+                                setEditDialogOpen(true);
+                              }}
+                            >
+                              <PencilIcon className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/30 transition-all duration-200 size-8"
+                              onClick={() => {
+                                if (confirm(`¿Está seguro de eliminar de forma permanente al usuario "${item.name}"?`)) {
+                                  deleteUserMutation.mutate(item.id);
+                                }
+                              }}
+                              disabled={deleteUserMutation.isPending}
+                            >
+                              <Trash2Icon className="size-4" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>

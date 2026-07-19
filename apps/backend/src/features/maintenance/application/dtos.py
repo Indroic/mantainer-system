@@ -39,12 +39,19 @@ class MaintenanceSparePartResponse(DTO):
     spare_part: SparePartResponse | None = None
 
 
+class MechanicResponse(DTO):
+    id: UUID
+    better_auth_user_id: str
+    name: str
+
+
 class MaintenanceResponse(DTO):
     id: UUID
     machine_id: UUID
     description: str
     status: MaintenanceStatus
     assigned_mechanic_id: UUID
+    assigned_mechanic_name: str | None = None
     next_service_horometer: float | None
     spare_parts: list[MaintenanceSparePartResponse]
     machine: MachineResponse | None = None

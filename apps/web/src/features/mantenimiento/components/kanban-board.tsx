@@ -80,7 +80,7 @@ export default function KanbanBoard({ orders }: KanbanBoardProps) {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <UserIcon className="size-3.5 text-slate-500" />
-                  <span className="truncate">Técnico Asignado</span>
+                  <span className="truncate">{order.assigned_mechanic_name || "Mecánico Asignado"}</span>
                 </div>
               </div>
 
@@ -150,9 +150,9 @@ export default function KanbanBoard({ orders }: KanbanBoardProps) {
                       </CardHeader>
                       <CardContent className="p-4 pt-0 pb-3">
                         <div className="flex items-center gap-2 text-xs text-slate-400">
-                          <UserIcon className="size-3.5 text-slate-500" />
-                          <span className="truncate">Mecánico Asignado</span>
-                        </div>
+                        <UserIcon className="size-3.5 text-slate-500" />
+                        <span className="truncate">{order.assigned_mechanic_name || "Mecánico Asignado"}</span>
+                      </div>
                       </CardContent>
                       <div className="px-4 py-3 bg-slate-950/20 border-t border-slate-800/40 flex justify-end">
                         <Link

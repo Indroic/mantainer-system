@@ -14,6 +14,7 @@ import {
   ArrowRightIcon,
   TrendingUpIcon,
   UserIcon,
+  TruckIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -75,7 +76,7 @@ function DashboardComponent() {
               <p className="text-[10px] text-slate-400">{activeMachines} Activos · {inMaintenance} Mantenimiento</p>
             </div>
             <div className="p-3 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400">
-              <CpuIcon className="size-5.5" />
+              <TruckIcon className="size-5.5" />
             </div>
           </CardContent>
         </Card>

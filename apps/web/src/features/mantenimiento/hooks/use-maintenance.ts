@@ -55,7 +55,18 @@ export function useCreateOrder() {
       toast.success("Orden de trabajo programada con éxito");
     },
     onError: (error: any) => {
-      toast.error(error?.message || "Error al programar la orden de trabajo");
+      // FastAPI retorna errores como { detail: "mensaje" } o { detail: [{...}] }
+      const detail = error?.data?.detail ?? error?.message;
+      let message: string;
+      if (Array.isArray(detail)) {
+        // Errores de validación Pydantic: array de objetos con 'msg'
+        message = detail.map((e: any) => e?.msg ?? String(e)).join("; ");
+      } else if (typeof detail === "string") {
+        message = detail;
+      } else {
+        message = "Error al programar la orden de trabajo";
+      }
+      toast.error(message);
     },
   });
 }

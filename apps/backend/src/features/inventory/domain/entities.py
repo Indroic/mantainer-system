@@ -9,6 +9,11 @@ class SparePart(BaseEntity):
     stock_current: int = 0
     stock_minimum: int
     unit_cost: float
+    # Campos extendidos
+    part_number: str | None = None
+    unit_of_measure: str | None = None
+    internal_code: str | None = None
+    unit_cost_usd: float | None = None
 
     @model_validator(mode="after")
     def validate_stock(self) -> Self:

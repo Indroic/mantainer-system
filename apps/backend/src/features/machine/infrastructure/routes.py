@@ -152,26 +152,29 @@ async def query_machines(
 @router.get(
     "/",
     response_model=list[MachineResponse],
-    dependencies=[
-        Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
-        )
-    ],
 )
 async def get_machines(
     status: str | None = None,
     search: str | None = None,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    current_user: UserMetadataResponse = Depends(
+        require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO])
+    ),
 ) -> list[MachineResponse]:
-    """Obtiene la lista de todas las máquinas, opcionalmente filtradas por estado o término de búsqueda."""
+    """Obtiene la lista de todas las máquinas, opcionalmente filtradas por estado o término de búsqueda.
+
+    Los roles no-Administrador jamsás verán máquinas con borrado lógico (is_active=False).
+    """
     from hexcore.application.dtos.query import QueryRequestDTO, FilterConditionDTO, FilterOperator
-    
+
     filters = []
     if status:
         filters.append(FilterConditionDTO(field="status", operator=FilterOperator.EQ, value=status))
-        
+
+    # Filtro RBAC: solo admins pueden ver máquinas dadas de baja (is_active=False)
+    if current_user.role != UserRole.ADMINISTRADOR:
+        filters.append(FilterConditionDTO(field="is_active", operator=FilterOperator.EQ, value=True))
+
     query_dto = QueryRequestDTO(
         limit=1000,
         offset=0,
@@ -192,12 +195,16 @@ async def get_machines(
             manufacture_year=m.manufacture_year,
             current_horometer=m.current_horometer,
             status=m.status,
+            horometer_unit=getattr(m, 'horometer_unit', 'Horas'),
+            description=getattr(m, 'description', None),
+            location=getattr(m, 'location', None),
             created_at=m.created_at,
             updated_at=m.updated_at,
             is_active=m.is_active,
         )
         for m in result.items
     ]
+
 
 
 @router.get(
@@ -228,10 +235,14 @@ async def get_machine(
         manufacture_year=m.manufacture_year,
         current_horometer=m.current_horometer,
         status=m.status,
+        horometer_unit=getattr(m, 'horometer_unit', 'Horas'),
+        description=getattr(m, 'description', None),
+        location=getattr(m, 'location', None),
         created_at=m.created_at,
         updated_at=m.updated_at,
         is_active=m.is_active,
     )
+
 
 
 @router.put(

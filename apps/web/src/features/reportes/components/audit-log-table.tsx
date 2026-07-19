@@ -2,7 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@mantainer-system/ui/components/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
 import type { AuditLogResponse } from "../types";
-import { ShieldCheckIcon, CalendarIcon, UserIcon, EyeIcon } from "lucide-react";
+import { ShieldCheckIcon, UserIcon, EyeIcon } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@mantainer-system/ui/lib/utils";
 
@@ -13,6 +13,17 @@ interface AuditLogTableProps {
 export default function AuditLogTable({ logs }: AuditLogTableProps) {
   const [selectedLog, setSelectedLog] = useState<AuditLogResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Formateador robusto de fecha y hora para evitar Invalid Date en navegadores estrictos
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "N/A";
+    // Si la fecha no termina en Z ni incluye información de zona horaria (+/-), añadimos Z (UTC)
+    const normalized = dateStr.endsWith("Z") || dateStr.includes("+") || dateStr.includes("-")
+      ? dateStr
+      : dateStr + "Z";
+    const date = new Date(normalized);
+    return isNaN(date.getTime()) ? "Fecha Inválida" : date.toLocaleString();
+  };
 
   // Formatear el contenido de los JSON de estado
   const formatStateJSON = (stateStr: string | null) => {
@@ -53,7 +64,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                   className="transition-colors duration-150 hover:bg-slate-800/20 border-b border-slate-800/50"
                 >
                   <TableCell className="font-mono text-xs text-slate-400">
-                    {new Date(log.created_at).toLocaleString()}
+                    {formatDate(log.created_at)}
                   </TableCell>
                   <TableCell className="font-bold text-slate-200 uppercase text-[10px] tracking-wider">
                     {log.entity_name}
@@ -112,10 +123,10 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                               <p className="text-[10px] text-slate-500 uppercase">Ejecutado por</p>
                               <p className="text-slate-200">{selectedLog?.performed_by_name || selectedLog?.performed_by}</p>
                             </div>
-                            <div>
+                             <div>
                               <p className="text-[10px] text-slate-500 uppercase">Fecha y Hora</p>
                               <p className="text-slate-200 font-mono">
-                                {selectedLog ? new Date(selectedLog.created_at).toLocaleString() : ""}
+                                {selectedLog ? formatDate(selectedLog.created_at) : ""}
                               </p>
                             </div>
                           </div>

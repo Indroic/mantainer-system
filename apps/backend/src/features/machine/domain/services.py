@@ -1,5 +1,5 @@
 from hexcore.domain.services import BaseDomainService
-from src.features.machine.domain.entities import Machine, MachineStatus
+from src.features.machine.domain.entities import Machine, MachineStatus, HorometerUnit
 
 
 class MachineDomainService(BaseDomainService):
@@ -19,6 +19,9 @@ class MachineDomainService(BaseDomainService):
         model: str,
         manufacture_year: int,
         current_horometer: float,
+        horometer_unit: HorometerUnit = HorometerUnit.HORAS,
+        description: str | None = None,
+        location: str | None = None,
     ) -> Machine:
         """Crea y registra una nueva máquina."""
         machine = Machine(
@@ -29,6 +32,9 @@ class MachineDomainService(BaseDomainService):
             manufacture_year=manufacture_year,
             current_horometer=current_horometer,
             status=MachineStatus.ACTIVA,
+            horometer_unit=horometer_unit,
+            description=description,
+            location=location,
         )
         await self._repo.save(machine)
         return machine

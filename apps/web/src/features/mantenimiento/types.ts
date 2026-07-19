@@ -3,6 +3,7 @@ import type { SparePartResponse } from "../repuestos/types";
 
 export interface MechanicResponse {
   id: string;
+  better_auth_user_id?: string;
   name: string;
 }
 
@@ -22,6 +23,7 @@ export interface MaintenanceOrderResponse {
   machine_id: string;
   description: string;
   assigned_mechanic_id: string;
+  assigned_mechanic_name?: string | null;
   status: OrderStatus;
   next_service_horometer: number | null;
   created_at: string;

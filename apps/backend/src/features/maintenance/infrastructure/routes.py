@@ -54,6 +54,8 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
     from src.features.inventory.infrastructure.repositories import SparePartRepository
     from src.features.machine.application.dtos import MachineResponse as MachineDTOResponse
     from src.features.inventory.application.dtos import SparePartResponse as SparePartDTOResponse
+    from src.features.user.infrastructure.repositories import UserRepository
+    from src.shared.infrastructure.database.user_lookup import resolve_user_names
 
     # 1. Obtener la Máquina asociada
     machine_repo = MachineRepository(uow)
@@ -69,6 +71,9 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
             manufacture_year=machine.manufacture_year,
             current_horometer=machine.current_horometer,
             status=machine.status,
+            horometer_unit=getattr(machine, 'horometer_unit', 'Horas'),
+            description=getattr(machine, 'description', None),
+            location=getattr(machine, 'location', None),
             created_at=machine.created_at,
             updated_at=machine.updated_at,
             is_active=machine.is_active,
@@ -76,7 +81,17 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
     except Exception:
         pass
 
-    # 2. Obtener y mapear repuestos
+    # 2. Resolver nombre del mecánico asignado
+    mechanic_name: str | None = None
+    try:
+        user_repo = UserRepository(uow)
+        mechanic_metadata = await user_repo.get_by_id(order.assigned_mechanic_id)
+        names = await resolve_user_names(uow.session, [mechanic_metadata.better_auth_user_id])
+        mechanic_name = names.get(mechanic_metadata.better_auth_user_id)
+    except Exception:
+        pass
+
+    # 3. Obtener y mapear repuestos
     part_repo = SparePartRepository(uow)
     spare_parts_dtos = []
     for sp in order.spare_parts:
@@ -96,7 +111,7 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
             )
         except Exception:
             pass
-            
+
         spare_parts_dtos.append(
             MaintenanceSparePartResponse(
                 id=sp.id,
@@ -114,6 +129,7 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
         description=order.description,
         status=order.status,
         assigned_mechanic_id=order.assigned_mechanic_id,
+        assigned_mechanic_name=mechanic_name,
         next_service_horometer=order.next_service_horometer,
         spare_parts=spare_parts_dtos,
         machine=machine_dto,
@@ -121,6 +137,7 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
         updated_at=order.updated_at,
         is_active=order.is_active,
     )
+
 
 
 @router.post(

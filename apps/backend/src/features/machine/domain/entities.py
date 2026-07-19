@@ -9,6 +9,12 @@ class MachineStatus(str, Enum):
     DADA_DE_BAJA = "DADA_DE_BAJA"
 
 
+class HorometerUnit(str, Enum):
+    HORAS = "Horas"
+    KM = "Kilómetros"
+    MILLAS = "Millas"
+
+
 class Machine(BaseEntity):
     code: str
     motor_serial: str
@@ -17,6 +23,9 @@ class Machine(BaseEntity):
     manufacture_year: int
     current_horometer: float = 0.0
     status: MachineStatus = MachineStatus.ACTIVA
+    horometer_unit: HorometerUnit = HorometerUnit.HORAS
+    description: str | None = None
+    location: str | None = None
 
     def update_horometer(self, new_value: float) -> None:
         """Actualiza el horómetro actual de la máquina validando que sea incremental y que la máquina no esté dada de baja."""
