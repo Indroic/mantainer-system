@@ -15,10 +15,10 @@ function MantenimientoDetalleComponent() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64 rounded bg-slate-800" />
+        <Skeleton className="h-8 w-64 rounded bg-default/50" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Skeleton className="h-60 rounded bg-slate-800" />
-          <Skeleton className="h-60 md:col-span-2 rounded bg-slate-800" />
+          <Skeleton className="h-60 rounded bg-default/50" />
+          <Skeleton className="h-60 md:col-span-2 rounded bg-default/50" />
         </div>
       </div>
     );
@@ -26,9 +26,9 @@ function MantenimientoDetalleComponent() {
 
   if (!order) {
     return (
-      <div className="text-center py-10 bg-slate-900/20 border border-slate-800 rounded-2xl">
+      <div className="text-center py-10 bg-surface/20 border border-border rounded-2xl">
         <AlertTriangleIcon className="size-8 mx-auto text-rose-500 mb-2" />
-        <p className="text-slate-500 text-sm font-semibold">No se encontró la orden de trabajo solicitada.</p>
+        <p className="text-muted-foreground text-sm font-semibold">No se encontró la orden de trabajo solicitada.</p>
       </div>
     );
   }
@@ -36,11 +36,11 @@ function MantenimientoDetalleComponent() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="space-y-1">
-        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <WrenchIcon className="size-6 text-indigo-400" />
           Ejecución de Mantenimiento
         </h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           Registra el avance, asigna repuestos del almacén e introduce el horómetro de liquidación
         </p>
       </div>

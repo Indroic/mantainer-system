@@ -38,22 +38,22 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/40 backdrop-blur-md shadow-xl">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface/20 backdrop-blur-md shadow-xl">
         <Table>
-          <TableHeader className="bg-slate-950/40 border-b border-slate-800/80">
+          <TableHeader className="bg-background/80 border-b border-border">
             <TableRow>
-              <TableHead className="font-semibold text-slate-300">Fecha y Hora</TableHead>
-              <TableHead className="font-semibold text-slate-300">Entidad</TableHead>
-              <TableHead className="font-semibold text-slate-300">ID del Registro</TableHead>
-              <TableHead className="font-semibold text-slate-300">Acción</TableHead>
-              <TableHead className="font-semibold text-slate-300">Realizado por</TableHead>
-              <TableHead className="font-semibold text-slate-300 text-right">Detalles Forenses</TableHead>
+              <TableHead className="font-semibold text-foreground/80">Fecha y Hora</TableHead>
+              <TableHead className="font-semibold text-foreground/80">Entidad</TableHead>
+              <TableHead className="font-semibold text-foreground/80">ID del Registro</TableHead>
+              <TableHead className="font-semibold text-foreground/80">Acción</TableHead>
+              <TableHead className="font-semibold text-foreground/80">Realizado por</TableHead>
+              <TableHead className="font-semibold text-foreground/80 text-right">Detalles Forenses</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-500 font-medium">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground font-medium">
                   No hay registros de auditoría forense que coincidan con los filtros.
                 </TableCell>
               </TableRow>
@@ -61,15 +61,15 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
               logs.map((log) => (
                 <TableRow
                   key={log.id}
-                  className="transition-colors duration-150 hover:bg-slate-800/20 border-b border-slate-800/50"
+                  className="transition-colors duration-150 hover:bg-default/50 border-b border-border"
                 >
-                  <TableCell className="font-mono text-xs text-slate-400">
+                  <TableCell className="font-mono text-xs text-muted-foreground">
                     {formatDate(log.created_at)}
                   </TableCell>
-                  <TableCell className="font-bold text-slate-200 uppercase text-[10px] tracking-wider">
+                  <TableCell className="font-bold text-foreground uppercase text-[10px] tracking-wider">
                     {log.entity_name}
                   </TableCell>
-                  <TableCell className="font-mono text-slate-400 text-xs truncate max-w-[120px]">
+                  <TableCell className="font-mono text-muted-foreground text-xs truncate max-w-[120px]">
                     {log.entity_id}
                   </TableCell>
                   <TableCell>
@@ -82,8 +82,8 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                       {log.action}
                     </span>
                   </TableCell>
-                  <TableCell className="font-medium text-slate-300 text-xs flex items-center gap-1.5 pt-4">
-                    <UserIcon className="size-3.5 text-slate-500" />
+                  <TableCell className="font-medium text-foreground/80 text-xs flex items-center gap-1.5 pt-4">
+                    <UserIcon className="size-3.5 text-muted-foreground" />
                     {log.performed_by_name || log.performed_by}
                   </TableCell>
                   <TableCell className="text-right">
@@ -102,38 +102,38 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                           Inspeccionar
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-2xl shadow-2xl">
+                      <DialogContent className="bg-card border border-border text-foreground p-6 rounded-2xl max-w-2xl shadow-2xl">
                         <DialogHeader>
-                          <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                          <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                             <ShieldCheckIcon className="size-5 text-indigo-400" />
                             Registro de Auditoría Forense
                           </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 mt-4 text-xs font-semibold">
-                          <div className="grid grid-cols-2 gap-4 p-3.5 bg-slate-950/60 border border-slate-850 rounded-xl">
+                          <div className="grid grid-cols-2 gap-4 p-3.5 bg-background/80 border border-border rounded-xl">
                             <div>
-                              <p className="text-[10px] text-slate-500 uppercase">Entidad Modificada</p>
-                              <p className="text-slate-200 uppercase font-bold">{selectedLog?.entity_name}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">Entidad Modificada</p>
+                              <p className="text-foreground uppercase font-bold">{selectedLog?.entity_name}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-slate-500 uppercase">Operación</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">Operación</p>
                               <p className="text-indigo-400 font-extrabold uppercase">{selectedLog?.action}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-slate-500 uppercase">Ejecutado por</p>
-                              <p className="text-slate-200">{selectedLog?.performed_by_name || selectedLog?.performed_by}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">Ejecutado por</p>
+                              <p className="text-foreground">{selectedLog?.performed_by_name || selectedLog?.performed_by}</p>
                             </div>
                              <div>
-                              <p className="text-[10px] text-slate-500 uppercase">Fecha y Hora</p>
-                              <p className="text-slate-200 font-mono">
+                              <p className="text-[10px] text-muted-foreground uppercase">Fecha y Hora</p>
+                              <p className="text-foreground font-mono">
                                 {selectedLog ? formatDate(selectedLog.created_at) : ""}
                               </p>
                             </div>
                           </div>
 
                           <div className="space-y-1.5">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Estado del Registro</p>
-                            <pre className="p-3.5 rounded-xl border border-slate-850 bg-slate-950/80 font-mono text-[10px] text-indigo-300 overflow-x-auto max-h-60 leading-relaxed">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Estado del Registro</p>
+                            <pre className="p-3.5 rounded-xl border border-border bg-background/80 font-mono text-[10px] text-indigo-300 overflow-x-auto max-h-60 leading-relaxed">
                               {formatStateJSON(selectedLog?.payload || null)}
                             </pre>
                           </div>
@@ -142,7 +142,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                             <Button
                               type="button"
                               onClick={() => setDialogOpen(false)}
-                              className="w-full rounded-xl bg-slate-800 text-slate-100 hover:bg-slate-700 font-semibold"
+                              className="w-full rounded-xl bg-default/50 text-foreground hover:bg-slate-700 font-semibold"
                             >
                               Cerrar Inspección
                             </Button>

@@ -40,12 +40,12 @@ function DashboardComponent() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64 rounded bg-slate-800" />
+        <Skeleton className="h-8 w-64 rounded bg-default/50" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Skeleton className="h-28 rounded bg-slate-800" />
-          <Skeleton className="h-28 rounded bg-slate-800" />
-          <Skeleton className="h-28 rounded bg-slate-800" />
-          <Skeleton className="h-28 rounded bg-slate-800" />
+          <Skeleton className="h-28 rounded bg-default/50" />
+          <Skeleton className="h-28 rounded bg-default/50" />
+          <Skeleton className="h-28 rounded bg-default/50" />
+          <Skeleton className="h-28 rounded bg-default/50" />
         </div>
       </div>
     );
@@ -58,8 +58,8 @@ function DashboardComponent() {
         <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
           Hola, {user?.name || "Técnico"}
         </h2>
-        <p className="text-slate-400 text-sm font-medium">
-          Bienvenido al centro operativo del taller. Rol: <span className="text-slate-200 uppercase font-bold">{roleLabel || "Mecánico"}</span>
+        <p className="text-muted-foreground text-sm font-medium">
+          Bienvenido al centro operativo del taller. Rol: <span className="text-foreground uppercase font-bold">{roleLabel || "Mecánico"}</span>
         </p>
       </div>
 

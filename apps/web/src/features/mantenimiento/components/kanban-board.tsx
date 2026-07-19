@@ -53,38 +53,38 @@ export default function KanbanBoard({ orders }: KanbanBoardProps) {
       {/* ========================================================================= */}
       <div className="block md:hidden space-y-4">
         {orders.length === 0 ? (
-          <div className="text-center py-10 bg-slate-900/20 border border-slate-800 rounded-2xl p-6">
+          <div className="text-center py-10 bg-surface/20 border border-border rounded-2xl p-6">
             <ClipboardListIcon className="size-8 mx-auto text-slate-600 mb-2" />
-            <p className="text-slate-500 text-sm font-medium">No hay órdenes de trabajo registradas.</p>
+            <p className="text-muted-foreground text-sm font-medium">No hay órdenes de trabajo registradas.</p>
           </div>
         ) : (
           orders.map((order) => (
             <Card
               key={order.id}
-              className="bg-slate-900/40 border-slate-800/80 rounded-2xl p-4 transition-all duration-200 active:scale-[0.99]"
+              className="bg-surface/20 border-border rounded-2xl p-4 transition-all duration-200 active:scale-[0.99]"
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                   <CpuIcon className="size-4 text-indigo-400" />
-                  <span className="font-mono font-bold text-slate-100">{order.machine?.code || "Maquinaria"}</span>
+                  <span className="font-mono font-bold text-foreground">{order.machine?.code || "Maquinaria"}</span>
                 </div>
                 {getStatusBadge(order.status)}
               </div>
 
-              <p className="text-sm font-medium text-slate-200 mb-4 line-clamp-2">{order.description}</p>
+              <p className="text-sm font-medium text-foreground mb-4 line-clamp-2">{order.description}</p>
 
-              <div className="flex flex-col gap-2 text-xs text-slate-400 border-t border-slate-850 pt-3">
+              <div className="flex flex-col gap-2 text-xs text-muted-foreground border-t border-border pt-3">
                 <div className="flex items-center gap-1.5">
-                  <CalendarIcon className="size-3.5 text-slate-500" />
+                  <CalendarIcon className="size-3.5 text-muted-foreground" />
                   <span>{new Date(order.created_at).toLocaleDateString()}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <UserIcon className="size-3.5 text-slate-500" />
+                  <UserIcon className="size-3.5 text-muted-foreground" />
                   <span className="truncate">{order.assigned_mechanic_name || "Mecánico Asignado"}</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-850 flex justify-end">
+              <div className="mt-4 pt-3 border-t border-border flex justify-end">
                 <Link
                   to="/mantenimiento/$id"
                   params={{ id: order.id }}

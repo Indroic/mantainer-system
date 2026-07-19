@@ -33,11 +33,11 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
     },
     DADA_DE_BAJA: {
       label: "Dada de Baja",
-      className: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+      className: "bg-default/10 text-muted-foreground border-border",
     },
   };
 
-  const currentStatus = statusStyles[machine.status] || { label: machine.status, className: "bg-slate-500/10 text-slate-400" };
+  const currentStatus = statusStyles[machine.status] || { label: machine.status, className: "bg-default/10 text-muted-foreground" };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -92,7 +92,7 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
         </div>
       </CardContent>
 
-      <CardFooter className="flex items-center justify-between border-t border-slate-800/60 pt-4 bg-slate-950/20">
+      <CardFooter className="flex items-center justify-between border-t border-border pt-4 bg-background/80">
         <Link
           to="/maquinaria/$id"
           params={{ id: machine.id }}
@@ -118,7 +118,7 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
         )}
 
         {isBaja && (
-          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
             Solo Lectura
           </span>
         )}

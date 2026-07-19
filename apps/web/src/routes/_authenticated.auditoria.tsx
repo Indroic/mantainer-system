@@ -23,10 +23,10 @@ function AuditoriaComponent() {
 
   if (!isAdmin) {
     return (
-      <div className="text-center py-12 bg-slate-900/20 border border-slate-800 rounded-3xl p-6 max-w-xl mx-auto">
+      <div className="text-center py-12 bg-surface/20 border border-border rounded-3xl p-6 max-w-xl mx-auto">
         <AlertTriangleIcon className="size-10 mx-auto text-rose-500 mb-2" />
-        <p className="text-slate-200 text-base font-bold">Acceso Restringido</p>
-        <p className="text-slate-400 text-xs mt-1">
+        <p className="text-foreground text-base font-bold">Acceso Restringido</p>
+        <p className="text-muted-foreground text-xs mt-1">
           Solo los usuarios con el rol de Administrador cuentan con autorización para realizar auditorías forenses sobre las operaciones transaccionales.
         </p>
       </div>
@@ -37,25 +37,25 @@ function AuditoriaComponent() {
     <div className="space-y-6 animate-fade-in">
       {/* Cabecera de Página */}
       <div className="space-y-1">
-        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ShieldCheckIcon className="size-6 text-indigo-400" />
           Bitácora de Auditoría Forense
         </h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           Registro inmutable de solo lectura para el rastreo y control forense de cambios transaccionales
         </p>
       </div>
 
       {/* Controles de Filtrado de Auditoría */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 backdrop-blur-md">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-surface/20 border border-border backdrop-blur-md">
         {/* Entidad */}
         <div className="space-y-1">
-          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1">Filtrar por Entidad</span>
+          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider pl-1">Filtrar por Entidad</span>
           <Select value={entityName} onValueChange={(val: any) => setEntityName(val || "ALL")}>
-            <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
+            <SelectTrigger className="bg-background/80 border-border rounded-xl text-foreground/80">
               <SelectValue placeholder="Todas las entidades" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl">
+            <SelectContent className="bg-background border border-border text-foreground rounded-xl">
               <SelectItem value="ALL">Todas las entidades</SelectItem>
               <SelectItem value="Machine">Maquinarias</SelectItem>
               <SelectItem value="MaintenanceOrder">Órdenes de Trabajo</SelectItem>
@@ -66,12 +66,12 @@ function AuditoriaComponent() {
 
         {/* Acción */}
         <div className="space-y-1">
-          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1">Filtrar por Operación</span>
+          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider pl-1">Filtrar por Operación</span>
           <Select value={action} onValueChange={(val: any) => setAction(val || "ALL")}>
-            <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
+            <SelectTrigger className="bg-background/80 border-border rounded-xl text-foreground/80">
               <SelectValue placeholder="Todas las acciones" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl">
+            <SelectContent className="bg-background border border-border text-foreground rounded-xl">
               <SelectItem value="ALL">Todas las operaciones</SelectItem>
               <SelectItem value="CREATE">CREATE</SelectItem>
               <SelectItem value="UPDATE">UPDATE</SelectItem>
@@ -85,8 +85,8 @@ function AuditoriaComponent() {
       <div className="pt-2">
         {isLoading ? (
           <div className="space-y-4">
-            <Skeleton className="h-10 rounded-xl bg-slate-800/40" />
-            <Skeleton className="h-44 rounded-xl bg-slate-800/45" />
+            <Skeleton className="h-10 rounded-xl bg-default/50" />
+            <Skeleton className="h-44 rounded-xl bg-default/50" />
           </div>
         ) : (
           <AuditLogTable logs={logs} />

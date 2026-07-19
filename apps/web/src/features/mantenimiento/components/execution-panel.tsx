@@ -110,8 +110,8 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
       {/* PANEL IZQUIERDO: DETALLE DE LA ORDEN & CONTROL DE FLUJO                   */}
       {/* ========================================================================= */}
       <div className="lg:col-span-1 space-y-6">
-        <Card className="border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-          <CardHeader className="border-b border-slate-800/60 pb-4">
+        <Card className="border-border bg-surface/20 backdrop-blur-md rounded-2xl">
+          <CardHeader className="border-b border-border pb-4">
             <div className="flex justify-between items-center mb-1">
               <span className="font-mono text-xs font-bold text-indigo-400">OT PORTAL</span>
               <Badge
@@ -125,35 +125,35 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                 {order.status}
               </Badge>
             </div>
-            <CardTitle className="text-xl font-bold text-slate-100">{order.description}</CardTitle>
-            <CardDescription className="text-xs text-slate-400">
+            <CardTitle className="text-xl font-bold text-foreground">{order.description}</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
               Creada el {new Date(order.created_at).toLocaleDateString()}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {/* Información Técnica de Maquinaria */}
-            <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/40">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Detalle del Activo</h3>
+            <div className="space-y-3 bg-background/80 p-4 rounded-xl border border-border">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Detalle del Activo</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Código</p>
-                  <p className="text-sm font-bold text-slate-200">{order.machine?.code}</p>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Código</p>
+                  <p className="text-sm font-bold text-foreground">{order.machine?.code}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Marca / Modelo</p>
-                  <p className="text-sm text-slate-300 font-medium">
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Marca / Modelo</p>
+                  <p className="text-sm text-foreground/80 font-medium">
                     {order.machine?.brand} {order.machine?.model}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Horómetro Actual</p>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Horómetro Actual</p>
                   <p className="text-sm font-mono font-bold text-indigo-400">
                     {order.machine?.current_horometer} hrs
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Estado Actual</p>
-                  <Badge variant="outline" className="text-[9px] rounded-lg mt-0.5 border-slate-700/60 text-slate-300 bg-slate-800/40 font-bold uppercase">
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Estado Actual</p>
+                  <Badge variant="outline" className="text-[9px] rounded-lg mt-0.5 border-slate-700/60 text-foreground/80 bg-default/50 font-bold uppercase">
                     {order.machine?.status}
                   </Badge>
                 </div>
@@ -161,7 +161,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
             </div>
 
             {/* Controles de Flujo de Trabajo */}
-            <div className="pt-4 border-t border-slate-850 space-y-3">
+            <div className="pt-4 border-t border-border space-y-3">
               {order.status === "PROGRAMADO" && (
                 <Button
                   onClick={handleStart}
@@ -181,16 +181,16 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                       Liquidar y Cerrar OT
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-sm">
+                  <DialogContent className="bg-card border border-border text-foreground p-6 rounded-2xl max-w-sm">
                     <DialogHeader>
-                      <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                      <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                         <GaugeIcon className="size-5 text-emerald-400" />
                         Cierre de Orden de Trabajo
                       </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleLiquidate} className="space-y-4 mt-2">
                       <div className="space-y-1">
-                        <Label htmlFor="horometerInput" className="text-slate-300 text-xs">
+                        <Label htmlFor="horometerInput" className="text-foreground/80 text-xs">
                           Horómetro de Cierre de Máquina (hrs)
                         </Label>
                         <Input
@@ -199,9 +199,9 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                           step="0.1"
                           value={horometerInput}
                           onChange={(e) => setHorometerInput(Number(e.target.value))}
-                          className="bg-slate-950/80 border-slate-800 rounded-xl"
+                          className="bg-background/80 border-border rounded-xl"
                         />
-                        <p className="text-[10px] text-slate-500 font-medium">
+                        <p className="text-[10px] text-muted-foreground font-medium">
                           Horómetro actual del activo: {order.machine?.current_horometer} hrs
                         </p>
                       </div>
@@ -227,7 +227,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                           type="button"
                           variant="outline"
                           onClick={() => setLiquidateDialogOpen(false)}
-                          className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
+                          className="flex-1 rounded-xl border-border text-foreground/80 hover:bg-default/50"
                         >
                           Cancelar
                         </Button>
@@ -238,7 +238,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
               )}
 
               {order.status === "LIQUIDADO" && (
-                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs flex gap-2 items-center justify-center font-medium">
+                <div className="p-3.5 rounded-xl bg-background/80 border border-border text-muted-foreground text-xs flex gap-2 items-center justify-center font-medium">
                   <CheckCircleIcon className="size-4 text-emerald-400 animate-pulse" />
                   <span>Orden Liquidada y Archivada</span>
                 </div>
@@ -252,14 +252,14 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
       {/* PANEL CENTRAL/DERECHO: CONSUMO DE REPUESTOS Y MATERIALES                  */}
       {/* ========================================================================= */}
       <div className="lg:col-span-2 space-y-6">
-        <Card className="border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800/60 pb-4">
+        <Card className="border-border bg-surface/20 backdrop-blur-md rounded-2xl">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
             <div className="space-y-0.5">
-              <CardTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                 <WrenchIcon className="size-5 text-indigo-400" />
                 Repuestos Consumidos
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-muted-foreground">
                 Piezas de recambio asignadas al mantenimiento
               </CardDescription>
             </div>
@@ -272,9 +272,9 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     Asignar Repuesto
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-md">
+                <DialogContent className="bg-card border border-border text-foreground p-6 rounded-2xl max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                    <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                       <PackagePlusIcon className="size-5 text-indigo-400" />
                       Asignar Pieza del Inventario
                     </DialogTitle>
@@ -282,7 +282,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                   <form onSubmit={handleAddSparePart} className="space-y-4 mt-2">
                     {/* Buscador de repuestos en caliente */}
                     <div className="space-y-1">
-                      <Label htmlFor="partSearch" className="text-slate-300 text-xs">
+                      <Label htmlFor="partSearch" className="text-foreground/80 text-xs">
                         Buscar Repuesto (Código o Nombre)
                       </Label>
                       <Input
@@ -291,16 +291,16 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                         placeholder="Ej. Filtro..."
                         value={sparePartSearch}
                         onChange={(e) => setSparePartSearch(e.target.value)}
-                        className="bg-slate-950/80 border-slate-800 rounded-xl"
+                        className="bg-background/80 border-border rounded-xl"
                       />
                     </div>
 
                     {/* Selector de repuesto encontrado */}
                     <div className="space-y-1">
-                      <Label className="text-slate-300 text-xs">Seleccione el Repuesto</Label>
-                      <div className="max-h-36 overflow-y-auto border border-slate-800 rounded-xl bg-slate-950/40 p-2 space-y-1">
+                      <Label className="text-foreground/80 text-xs">Seleccione el Repuesto</Label>
+                      <div className="max-h-36 overflow-y-auto border border-border rounded-xl bg-background/80 p-2 space-y-1">
                         {spareParts.length === 0 ? (
-                          <p className="text-xs text-slate-500 text-center py-4">
+                          <p className="text-xs text-muted-foreground text-center py-4">
                             No se encontraron repuestos.
                           </p>
                         ) : (
@@ -316,7 +316,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                                 "flex w-full items-center justify-between px-3 py-2 rounded-lg text-left text-xs font-semibold transition-colors",
                                 selectedPart?.id === part.id
                                   ? "bg-indigo-600 text-white"
-                                  : "hover:bg-slate-800 text-slate-300"
+                                  : "hover:bg-default/50 text-foreground/80"
                               )}
                             >
                               <span>
@@ -332,19 +332,19 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     </div>
 
                     {selectedPart && (
-                      <div className="space-y-3 p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+                      <div className="space-y-3 p-3 bg-background/80 border border-border rounded-xl">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-400">Pieza seleccionada:</span>
-                          <span className="font-bold text-slate-100">{selectedPart.name}</span>
+                          <span className="text-muted-foreground">Pieza seleccionada:</span>
+                          <span className="font-bold text-foreground">{selectedPart.name}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-400">Stock disponible:</span>
-                          <span className="font-bold font-mono text-slate-100">
+                          <span className="text-muted-foreground">Stock disponible:</span>
+                          <span className="font-bold font-mono text-foreground">
                             {selectedPart.stock_current} unidades
                           </span>
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor="qtyInput" className="text-slate-300 text-xs">
+                          <Label htmlFor="qtyInput" className="text-foreground/80 text-xs">
                             Cantidad a Utilizar
                           </Label>
                           <Input
@@ -353,7 +353,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                             min="1"
                             value={quantity}
                             onChange={(e) => setQuantity(Number(e.target.value))}
-                            className="bg-slate-950/80 border-slate-800 rounded-xl"
+                            className="bg-background/80 border-border rounded-xl"
                           />
                         </div>
 
@@ -381,7 +381,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                         type="button"
                         variant="outline"
                         onClick={() => setDialogOpen(false)}
-                        className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
+                        className="flex-1 rounded-xl border-border text-foreground/80 hover:bg-default/50"
                       >
                         Cancelar
                       </Button>
@@ -392,17 +392,17 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
             )}
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
-            <div className="overflow-hidden rounded-xl border border-slate-800/80 bg-slate-950/20">
+            <div className="overflow-hidden rounded-xl border border-border bg-background/80">
               <Table>
-                <TableHeader className="bg-slate-950/60">
+                <TableHeader className="bg-background/80">
                   <TableRow>
-                    <TableHead className="font-semibold text-slate-400">Código</TableHead>
-                    <TableHead className="font-semibold text-slate-400">Descripción</TableHead>
-                    <TableHead className="font-semibold text-slate-400 text-right">Cantidad</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground">Código</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground">Descripción</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-right">Cantidad</TableHead>
                     {canSeeFinancials && (
                       <>
-                        <TableHead className="font-semibold text-slate-400 text-right">Costo Unit. Hist.</TableHead>
-                        <TableHead className="font-semibold text-slate-400 text-right">Subtotal</TableHead>
+                        <TableHead className="font-semibold text-muted-foreground text-right">Costo Unit. Hist.</TableHead>
+                        <TableHead className="font-semibold text-muted-foreground text-right">Subtotal</TableHead>
                       </>
                     )}
                   </TableRow>
@@ -410,23 +410,23 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                 <TableBody>
                   {order.spare_parts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canSeeFinancials ? 5 : 3} className="text-center py-8 text-slate-500 font-medium">
+                      <TableCell colSpan={canSeeFinancials ? 5 : 3} className="text-center py-8 text-muted-foreground font-medium">
                         No se han asignado repuestos a esta orden de trabajo.
                       </TableCell>
                     </TableRow>
                   ) : (
                     order.spare_parts.map((item) => (
-                      <TableRow key={item.id} className="border-b border-slate-850/50 hover:bg-slate-900/10">
+                      <TableRow key={item.id} className="border-b border-border/50 hover:bg-surface/20">
                         <TableCell className="font-mono font-bold text-indigo-400">
                           {item.spare_part?.code || "REP-REP"}
                         </TableCell>
-                        <TableCell className="font-medium text-slate-200">
+                        <TableCell className="font-medium text-foreground">
                           {item.spare_part?.name || "Repuesto Histórico"}
                         </TableCell>
-                        <TableCell className="text-right font-mono text-slate-300">{item.quantity}</TableCell>
+                        <TableCell className="text-right font-mono text-foreground/80">{item.quantity}</TableCell>
                         {canSeeFinancials && (
                           <>
-                            <TableCell className="text-right font-mono text-slate-300">
+                            <TableCell className="text-right font-mono text-foreground/80">
                               ${item.unit_cost_at_time.toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right font-mono font-semibold text-indigo-300">
@@ -443,8 +443,8 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
 
             {/* Sumatoria de Costos */}
             {canSeeFinancials && (
-              <div className="flex justify-between items-center p-4 bg-slate-950/40 rounded-xl border border-slate-800/40">
-                <div className="flex items-center gap-2 text-slate-400">
+              <div className="flex justify-between items-center p-4 bg-background/80 rounded-xl border border-border">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <CoinsIcon className="size-4 text-indigo-400" />
                   <span className="text-xs font-semibold uppercase tracking-wider">Costo Financiero de Repuestos</span>
                 </div>

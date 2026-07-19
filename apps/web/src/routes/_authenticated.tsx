@@ -63,11 +63,7 @@ function AuthenticatedLayout() {
   const isDark = resolvedTheme === "dark";
 
   const toggleTheme = () => {
-    if (theme === "system") {
-      setTheme(resolvedTheme === "dark" ? "light" : "dark");
-    } else {
-      setTheme(theme === "dark" ? "light" : "dark");
-    }
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   const handleLogout = async () => {
