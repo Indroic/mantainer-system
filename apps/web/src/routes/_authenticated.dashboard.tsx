@@ -34,12 +34,12 @@ function MetricCard({ label, value, subtitle, icon: Icon, iconClass }: MetricCar
   return (
     <Card className="border-border bg-card rounded-2xl">
       <CardContent className="p-5 flex items-center justify-between gap-4">
-        <div className="space-y-1 min-w-0">
+        <div className="space-y-1 min-w-0 w-full">
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{label}</p>
           <p className="font-mono text-2xl font-extrabold text-foreground">{value}</p>
           <p className="text-[10px] text-muted-foreground/70 truncate">{subtitle}</p>
         </div>
-        <div className={cn("p-3 rounded-xl shrink-0", iconClass)}>
+        <div className={cn("p-3 rounded-xl shrink-0 w-full", iconClass)}>
           <Icon className="size-5" />
         </div>
       </CardContent>
