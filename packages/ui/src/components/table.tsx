@@ -1,114 +1,56 @@
+"use client"
+
 import * as React from "react"
+import { Table as HeroTable } from "@heroui/react"
 
-import { cn } from "@mantainer-system/ui/lib/utils"
+const Table = React.forwardRef<HTMLTableElement, React.ComponentProps<typeof HeroTable>>(
+  (props, ref) => <HeroTable ref={ref} {...props} />
+);
+Table.displayName = "Table";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
-  return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto"
-    >
-      <table
-        data-slot="table"
-        className={cn("w-full caption-bottom text-xs", className)}
-        {...props}
-      />
-    </div>
-  )
-}
+const TableHeader = React.forwardRef<HTMLTableSectionElement, React.ComponentProps<typeof HeroTable.Header>>(
+  (props, ref) => <HeroTable.Header ref={ref} {...props} />
+);
+TableHeader.displayName = "TableHeader";
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return (
-    <thead
-      data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
-      {...props}
-    />
-  )
-}
+const TableBody = React.forwardRef<HTMLTableSectionElement, React.ComponentProps<typeof HeroTable.Body>>(
+  (props, ref) => <HeroTable.Body ref={ref} {...props} />
+);
+TableBody.displayName = "TableBody";
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
-  return (
-    <tbody
-      data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
-      {...props}
-    />
-  )
-}
+const TableRow = React.forwardRef<HTMLTableRowElement, React.ComponentProps<typeof HeroTable.Row>>(
+  (props, ref) => <HeroTable.Row ref={ref} {...props} />
+);
+TableRow.displayName = "TableRow";
 
-function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
-  return (
-    <tfoot
-      data-slot="table-footer"
-      className={cn(
-        "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+const TableCell = React.forwardRef<HTMLTableCellElement, React.ComponentProps<typeof HeroTable.Cell>>(
+  (props, ref) => <HeroTable.Cell ref={ref} {...props} />
+);
+TableCell.displayName = "TableCell";
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return (
-    <tr
-      data-slot="table-row"
-      className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+const TableHead = React.forwardRef<HTMLTableCellElement, React.ComponentProps<typeof HeroTable.Column>>(
+  (props, ref) => <HeroTable.Column ref={ref} {...props} />
+);
+TableHead.displayName = "TableHead";
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return (
-    <th
-      data-slot="table-head"
-      className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+const TableFooter = React.forwardRef<HTMLTableSectionElement, React.ComponentProps<typeof HeroTable.Footer>>(
+  (props, ref) => <HeroTable.Footer ref={ref} {...props} />
+);
+TableFooter.displayName = "TableFooter";
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return (
-    <td
-      data-slot="table-cell"
-      className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function TableCaption({
-  className,
-  ...props
-}: React.ComponentProps<"caption">) {
-  return (
-    <caption
-      data-slot="table-caption"
-      className={cn("mt-4 text-xs text-muted-foreground", className)}
-      {...props}
-    />
-  )
-}
+const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.ComponentProps<"caption">>(
+  (props, ref) => <caption ref={ref} {...props} />
+);
+TableCaption.displayName = "TableCaption";
 
 export {
   Table,
   TableHeader,
   TableBody,
-  TableFooter,
-  TableHead,
   TableRow,
   TableCell,
+  TableHead,
+  TableFooter,
   TableCaption,
 }
+export default Table;

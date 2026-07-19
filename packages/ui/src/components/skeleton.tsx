@@ -1,13 +1,11 @@
-import { cn } from "@mantainer-system/ui/lib/utils";
+"use client"
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="skeleton"
-      className={cn("animate-pulse rounded-none bg-muted", className)}
-      {...props}
-    />
-  );
-}
+import * as React from "react"
+import { Skeleton as HeroSkeleton } from "@heroui/react"
 
-export { Skeleton };
+export const Skeleton = React.forwardRef<HTMLDivElement, React.ComponentProps<typeof HeroSkeleton>>(
+  (props, ref) => <HeroSkeleton ref={ref} {...props} />
+);
+Skeleton.displayName = "Skeleton";
+
+export default Skeleton;
