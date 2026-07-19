@@ -3,6 +3,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@mantainer-system/ui/components/button";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
+import { useTheme } from "@mantainer-system/ui/hooks/use-theme";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,16 +27,12 @@ import {
   SunIcon,
   MoonIcon,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import NotificationCenter from "@/features/alertas/components/notification-center";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
-    // Verificación de sesión del lado del cliente (SPA estático, sin server functions).
-    // Si el servidor de auth no responde (error de red / CORS), getSession puede
-    // lanzar "Failed to fetch": lo capturamos y tratamos como sesión ausente para
-    // redirigir al login en lugar de romper la carga de la ruta.
     let session: Awaited<ReturnType<typeof authClient.getSession>>["data"] = null;
     try {
       const result = await authClient.getSession();
@@ -60,34 +57,27 @@ function AuthenticatedLayout() {
   const navigate = useNavigate();
 
   // -----------------------------------------------------------------
-  // Toggle de Tema Dark / Light — HeroUI v3: class="dark" + data-theme
+  // Hook de Temas Nativo de HeroUI v3
   // -----------------------------------------------------------------
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const saved = localStorage.getItem("sgmm-theme");
-    return saved ? saved === "dark" : true; // dark por defecto
-  });
+  const { resolvedTheme, setTheme, theme } = useTheme("system");
+  const isDark = resolvedTheme === "dark";
 
-  useEffect(() => {
-    const html = document.documentElement;
-    if (isDark) {
-      html.classList.add("dark");
-      html.setAttribute("data-theme", "dark");
+  const toggleTheme = () => {
+    if (theme === "system") {
+      setTheme(resolvedTheme === "dark" ? "light" : "dark");
     } else {
-      html.classList.remove("dark");
-      html.setAttribute("data-theme", "light");
+      setTheme(theme === "dark" ? "light" : "dark");
     }
-    localStorage.setItem("sgmm-theme", isDark ? "dark" : "light");
-  }, [isDark]);
-
-  const toggleTheme = () => setIsDark((prev) => !prev);
+  };
 
   const handleLogout = async () => {
     try {
       await authClient.signOut({
-        onSuccess: () => {
-          toast.success("Sesión cerrada con éxito");
-          navigate({ to: "/login" });
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Sesión cerrada con éxito");
+            navigate({ to: "/login" });
+          },
         },
       });
     } catch (err) {
@@ -95,7 +85,6 @@ function AuthenticatedLayout() {
     }
   };
 
-  // Definir links dinámicos basados en RBAC
   const navigationItems = [
     {
       to: "/dashboard",
@@ -107,7 +96,7 @@ function AuthenticatedLayout() {
       to: "/maquinaria",
       label: "Maquinaria",
       icon: CpuIcon,
-      visible: true, // Todos lo ven, pero los mecánicos ven vistas simplificadas
+      visible: true,
     },
     {
       to: "/mantenimiento",
@@ -143,22 +132,22 @@ function AuthenticatedLayout() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-slate-950 text-slate-100">
+      <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-background text-foreground">
         <div className="flex flex-col gap-2 items-center">
-          <Skeleton className="h-8 w-48 rounded bg-slate-800" />
-          <Skeleton className="h-4 w-32 rounded bg-slate-800" />
+          <Skeleton className="h-8 w-48 rounded bg-default/50" />
+          <Skeleton className="h-4 w-32 rounded bg-default/50" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       {/* 1. Sidebar para pantallas grandes */}
-      <aside className="hidden md:flex md:w-64 md:flex-col bg-slate-900/60 backdrop-blur-xl border-r border-slate-800/80">
-        <div className="flex h-16 items-center justify-start gap-2 px-6 border-b border-slate-800/80">
-          <WrenchIcon className="size-6 text-indigo-400 animate-pulse" />
-          <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+      <aside className="hidden md:flex md:w-64 md:flex-col bg-surface/60 backdrop-blur-xl border-r border-border">
+        <div className="flex h-16 items-center justify-start gap-2 px-6 border-b border-border">
+          <WrenchIcon className="size-6 text-accent animate-pulse" />
+          <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-accent to-cyan-400 bg-clip-text text-transparent">
             SGMM Portal
           </span>
         </div>
@@ -169,18 +158,18 @@ function AuthenticatedLayout() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 [&.active]:text-white [&.active]:bg-indigo-600/90 [&.active]:shadow-lg [&.active]:shadow-indigo-600/20"
+                className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-muted hover:text-foreground hover:bg-default/50 [&.active]:text-accent-foreground [&.active]:bg-accent [&.active]:shadow-lg [&.active]:shadow-accent/20"
               >
                 <item.icon className="size-5" />
                 {item.label}
               </Link>
             ))}
         </nav>
-        <div className="p-4 border-t border-slate-800/80">
+        <div className="p-4 border-t border-border">
           <Button
             variant="ghost"
             onClick={handleLogout}
-            className="flex w-full items-center justify-start gap-3 px-4 py-3 text-sm font-medium rounded-xl text-rose-400 hover:text-rose-200 hover:bg-rose-950/20"
+            className="flex w-full items-center justify-start gap-3 px-4 py-3 text-sm font-medium rounded-xl text-danger hover:text-danger hover:bg-danger/10"
           >
             <LogOutIcon className="size-5" />
             Cerrar Sesión
@@ -191,11 +180,11 @@ function AuthenticatedLayout() {
       {/* 2. Contenedor de contenido */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header superior premium con efecto de glassmorphism */}
-        <header className="flex h-16 items-center justify-between px-6 bg-slate-900/40 backdrop-blur-xl border-b border-slate-800/60 z-20">
+        <header className="flex h-16 items-center justify-between px-6 bg-surface/40 backdrop-blur-xl border-b border-border z-20">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80"
+              className="md:hidden p-2 rounded-xl bg-default/80 hover:bg-default"
             >
               <MenuIcon className="size-5" />
             </button>
@@ -209,7 +198,7 @@ function AuthenticatedLayout() {
             <button
               id="theme-toggle"
               onClick={toggleTheme}
-              className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/40 hover:bg-slate-700/80 transition-colors text-slate-400 hover:text-slate-100"
+              className="p-2 rounded-xl bg-default/60 border border-border hover:bg-default transition-colors text-muted hover:text-foreground"
               title={isDark ? "Cambiar a modo Claro" : "Cambiar a modo Oscuro"}
             >
               {isDark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
@@ -221,31 +210,31 @@ function AuthenticatedLayout() {
             {/* Menú de Usuario */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 p-1.5 pr-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/40 transition-colors text-left">
-                  <div className="size-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-600/20">
+                <button className="flex items-center gap-3 p-1.5 pr-3 rounded-xl bg-default/60 hover:bg-default border border-border transition-colors text-left">
+                  <div className="size-8 rounded-lg bg-accent flex items-center justify-center font-bold text-accent-foreground shadow-md shadow-accent/20">
                     {user?.name?.[0]?.toUpperCase() || <UserIcon className="size-4" />}
                   </div>
                   <div className="hidden sm:block">
-                    <p className="text-xs font-bold text-slate-100 truncate max-w-[120px]">{user?.name}</p>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{roleLabel || "Mecánico"}</p>
+                    <p className="text-xs font-bold text-foreground truncate max-w-[120px]">{user?.name}</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wider font-semibold">{roleLabel || "Mecánico"}</p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-slate-900 border border-slate-800 text-slate-100 p-2 rounded-2xl shadow-xl">
+              <DropdownMenuContent className="w-56 bg-overlay border border-border text-foreground p-2 rounded-2xl shadow-xl">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-slate-400 uppercase">
+                  <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-muted uppercase">
                     Mi Perfil
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator className="bg-slate-800" />
+                <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem asChild>
-                  <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-slate-800 transition-colors">
-                    <UserIcon className="size-4 text-indigo-400" />
+                  <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-default transition-colors">
+                    <UserIcon className="size-4 text-accent" />
                     Mi Dashboard
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-slate-800" />
-                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-rose-400 hover:bg-rose-950/20 hover:text-rose-200 transition-colors">
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-danger hover:bg-danger/10 transition-colors">
                   <LogOutIcon className="size-4" />
                   Cerrar Sesión
                 </DropdownMenuItem>
@@ -257,10 +246,10 @@ function AuthenticatedLayout() {
         {/* 3. Panel móvil lateral */}
         {mobileMenuOpen && (
           <div className="md:hidden fixed inset-0 z-40 flex">
-            <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-            <aside className="relative flex w-64 flex-col bg-slate-900 border-r border-slate-800 p-6 animate-slide-in">
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+            <aside className="relative flex w-64 flex-col bg-surface border-r border-border p-6 animate-slide-in">
               <div className="flex h-10 items-center gap-2 mb-8">
-                <WrenchIcon className="size-6 text-indigo-400 animate-pulse" />
+                <WrenchIcon className="size-6 text-accent animate-pulse" />
                 <span className="text-lg font-bold tracking-tight">SGMM Portal</span>
               </div>
               <nav className="flex-1 space-y-1">
@@ -271,18 +260,18 @@ function AuthenticatedLayout() {
                       key={item.to}
                       to={item.to}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 [&.active]:text-white [&.active]:bg-indigo-600/90"
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-muted hover:text-foreground hover:bg-default/50 [&.active]:text-accent-foreground [&.active]:bg-accent"
                     >
                       <item.icon className="size-5" />
                       {item.label}
                     </Link>
                   ))}
               </nav>
-              <div className="mt-auto border-t border-slate-800 pt-4">
+              <div className="mt-auto border-t border-border pt-4">
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
-                  className="flex w-full items-center justify-start gap-3 px-4 py-3 text-sm font-medium rounded-xl text-rose-400 hover:text-rose-200 hover:bg-rose-950/20"
+                  className="flex w-full items-center justify-start gap-3 px-4 py-3 text-sm font-medium rounded-xl text-danger hover:text-danger hover:bg-danger/10"
                 >
                   <LogOutIcon className="size-5" />
                   Cerrar Sesión
@@ -300,3 +289,4 @@ function AuthenticatedLayout() {
     </div>
   );
 }
+

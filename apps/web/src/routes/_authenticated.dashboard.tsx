@@ -9,11 +9,9 @@ import {
   CpuIcon,
   WrenchIcon,
   PackageIcon,
-  ShieldCheckIcon,
   ClipboardListIcon,
   ArrowRightIcon,
   TrendingUpIcon,
-  UserIcon,
   TruckIcon,
 } from "lucide-react";
 
@@ -31,7 +29,6 @@ function DashboardComponent() {
 
   const activeMachines = machines.filter((m) => m.status === "ACTIVA").length;
   const inMaintenance = machines.filter((m) => m.status === "EN_MANTENIMIENTO").length;
-  const inactiveMachines = machines.filter((m) => m.status === "FUERA_DE_SERVICIO").length;
 
   const pendingOrders = orders.filter((o) => o.status === "PROGRAMADO").length;
   const executingOrders = orders.filter((o) => o.status === "EN_EJECUCION").length;

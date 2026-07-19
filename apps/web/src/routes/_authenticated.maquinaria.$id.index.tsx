@@ -231,7 +231,7 @@ function MaquinariaFichaComponent() {
                       <Select
                         disabled={isBaja}
                         value={status}
-                        onValueChange={(val) => handleStatusChange(val || "ACTIVA")}
+                        onValueChange={(val: any) => handleStatusChange(val || "ACTIVA")}
                       >
                         <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
                           <SelectValue placeholder="Estado" />

@@ -1,6 +1,7 @@
 import { createDb } from "@mantainer-system/db";
 import * as schema from "@mantainer-system/db/schema/auth";
 import { betterAuth, APIError } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, jwt } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
@@ -70,7 +71,7 @@ export function createAuth() {
       },
     },
     hooks: {
-      before: async (ctx) => {
+      before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/admin/create-user") {
           const body = ctx.body as { name?: string } | undefined;
           const NAME_PATTERN = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ' -]+$/;
@@ -94,14 +95,14 @@ export function createAuth() {
 
             // 2. Evitar eliminar o cambiar el rol de cualquier administrador
             const targetUser = await ctx.context.internalAdapter.findUserById(body.userId);
-            if (targetUser && targetUser.role === "admin") {
+            if (targetUser && (targetUser as any).role === "admin") {
               throw new APIError("BAD_REQUEST", {
                 message: "No está permitido eliminar o alterar el nivel de acceso de un usuario Administrador por motivos de seguridad."
               });
             }
           }
         }
-      }
+      }),
     },
     plugins: [
       // El plugin admin añade el campo `role` al usuario (viaja en el JWT) y

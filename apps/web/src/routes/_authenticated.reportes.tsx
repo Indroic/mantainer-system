@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCostReport } from "@/features/reportes/hooks/use-reportes";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import CostReportPanel from "@/features/reportes/components/cost-report-panel";
@@ -6,10 +6,6 @@ import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import { BarChart3Icon, AlertTriangleIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/reportes")({
-  beforeLoad: async ({ context }) => {
-    // Protección estricta de ruta en loader por RBAC (Admin / Supervisor)
-    // Nota: Aunque useAuth se llama en render, interceptamos en beforeLoad si context tiene la sesión ya cargada
-  },
   component: ReportesComponent,
 });
 

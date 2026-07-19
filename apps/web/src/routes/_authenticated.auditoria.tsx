@@ -51,7 +51,7 @@ function AuditoriaComponent() {
         {/* Entidad */}
         <div className="space-y-1">
           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1">Filtrar por Entidad</span>
-          <Select value={entityName} onValueChange={(val) => setEntityName(val || "ALL")}>
+          <Select value={entityName} onValueChange={(val: any) => setEntityName(val || "ALL")}>
             <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
               <SelectValue placeholder="Todas las entidades" />
             </SelectTrigger>
@@ -67,7 +67,7 @@ function AuditoriaComponent() {
         {/* Acción */}
         <div className="space-y-1">
           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1">Filtrar por Operación</span>
-          <Select value={action} onValueChange={(val) => setAction(val || "ALL")}>
+          <Select value={action} onValueChange={(val: any) => setAction(val || "ALL")}>
             <SelectTrigger className="bg-slate-950/80 border-slate-800 rounded-xl text-slate-300">
               <SelectValue placeholder="Todas las acciones" />
             </SelectTrigger>

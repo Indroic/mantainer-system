@@ -3,9 +3,8 @@ import { useSpareParts, useCreateSparePart } from "@/features/repuestos/hooks/us
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import SparePartsTable from "@/features/repuestos/components/spare-parts-table";
 import { Button } from "@mantainer-system/ui/components/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
-import { Input } from "@mantainer-system/ui/components/input";
-import { Label } from "@mantainer-system/ui/components/label";
+import { Modal } from "@mantainer-system/ui/components/modal";
+import { TextField, NumberField, FieldError, Input, Label } from "@heroui/react";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { authClient } from "@/lib/auth-client";
@@ -162,11 +161,11 @@ function RepuestosComponent() {
       {/* Cabecera de Página */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <PackageIcon className="size-6 text-indigo-400" />
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <PackageIcon className="size-6 text-accent" />
             Inventario de Repuestos e Insumos
           </h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted">
             Control de stock físico de recambios, números de parte y puntos de reorden crítico
           </p>
         </div>
@@ -186,7 +185,7 @@ function RepuestosComponent() {
                 variant="outline"
                 disabled={importing}
                 onClick={() => fileInputRef.current?.click()}
-                className="rounded-xl px-4 border-slate-800 hover:bg-slate-800 text-slate-300 font-semibold flex items-center gap-1.5 shadow-md"
+                className="rounded-xl px-4 border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 shadow-md h-8"
               >
                 <UploadIcon className="size-4" />
                 {importing ? "Importando..." : "Importar CSV"}
@@ -195,7 +194,7 @@ function RepuestosComponent() {
               <Button
                 variant="outline"
                 onClick={handleExportCSV}
-                className="rounded-xl px-4 border-slate-800 hover:bg-slate-800 text-slate-300 font-semibold flex items-center gap-1.5 shadow-md"
+                className="rounded-xl px-4 border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 shadow-md h-8"
               >
                 <DownloadIcon className="size-4" />
                 Exportar CSV
@@ -204,220 +203,327 @@ function RepuestosComponent() {
           )}
 
           {canEdit && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="rounded-xl px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/10">
-                  <PlusIcon className="size-4" />
-                  Registrar Repuesto
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-lg shadow-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                    <PackageIcon className="size-5 text-indigo-400" />
-                    Registrar Repuesto / Material
-                  </DialogTitle>
-                </DialogHeader>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="rounded-xl px-4 bg-accent hover:bg-accent/80 text-accent-foreground font-semibold flex items-center gap-1.5 shadow-md shadow-accent/10 h-8"
+            >
+              <PlusIcon className="size-4" />
+              Registrar Repuesto
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Control de Búsqueda */}
+      <div className="relative p-4 rounded-2xl bg-surface/40 border border-border backdrop-blur-md">
+        <SearchIcon className="absolute left-7 top-1/2 -translate-y-1/2 size-4.5 text-muted" />
+        <Input
+          type="text"
+          placeholder="Buscar repuestos por código o nombre..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10 bg-default/60 border-border focus:border-accent rounded-xl text-foreground"
+        />
+      </div>
+
+      {/* Tabla de Repuestos */}
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 rounded-xl bg-default/50" />
+          <Skeleton className="h-44 rounded-xl bg-default/50" />
+        </div>
+      ) : (
+        <SparePartsTable parts={parts} canEdit={canEdit} />
+      )}
+
+      {/* Modal de Registro de Repuesto (HeroUI v3 Modal) */}
+      <Modal isOpen={dialogOpen} onOpenChange={setDialogOpen}>
+        <Modal.Backdrop variant="blur">
+          <Modal.Container size="cover">
+            <Modal.Dialog className="max-w-lg bg-background border border-border text-foreground shadow-2xl p-6 rounded-2xl">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading className="text-2xl font-bold flex items-center gap-2">
+                  <PackageIcon className="size-6 text-accent" />
+                  Registrar Repuesto / Material
+                </Modal.Heading>
+                <p className="text-sm text-muted">
+                  Añade un nuevo insumo o refacción al inventario del taller
+                </p>
+              </Modal.Header>
+              <Modal.Body className="p-0 pt-4">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     form.handleSubmit();
                   }}
-                  className="space-y-4 mt-2"
+                  className="space-y-4"
                 >
                   <div className="grid grid-cols-2 gap-4">
                     {/* Código de Activo (Sistema) */}
                     <form.Field name="code">
-                      {(field) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Código Corto Sistema</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <TextField
                             name={field.name}
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Ej. FIL-001"
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val)}
+                            className="w-full flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Código Corto Sistema</Label>
+                            <Input
+                              id={field.name}
+                              placeholder="Ej. FIL-001"
+                              onBlur={field.handleBlur}
+                              className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                            />
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </TextField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Código Interno (Personalizado) */}
                     <form.Field name="internal_code">
-                      {(field) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Código Interno Barra</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <TextField
                             name={field.name}
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Ej. INT-987654"
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val)}
+                            className="w-full flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Código Interno Barra</Label>
+                            <Input
+                              id={field.name}
+                              placeholder="Ej. INT-987654"
+                              onBlur={field.handleBlur}
+                              className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                            />
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </TextField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Número de Parte de Fabricante */}
                     <form.Field name="part_number">
-                      {(field) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Número de Parte OEM</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <TextField
                             name={field.name}
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Ej. OEM-4W0253"
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val)}
+                            className="w-full flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Número de Parte OEM</Label>
+                            <Input
+                              id={field.name}
+                              placeholder="Ej. OEM-4W0253"
+                              onBlur={field.handleBlur}
+                              className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                            />
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </TextField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Unidad de Medida */}
                     <form.Field name="unit_of_measure">
-                      {(field) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Unidad de Medida</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <TextField
                             name={field.name}
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Ej. Unidades, Litros, Metros"
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val)}
+                            className="w-full flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Unidad de Medida</Label>
+                            <Input
+                              id={field.name}
+                              placeholder="Ej. Unidades, Litros, Metros"
+                              onBlur={field.handleBlur}
+                              className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                            />
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </TextField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Nombre */}
                     <form.Field name="name">
-                      {(field) => (
-                        <div className="space-y-1.5 col-span-2">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Nombre Descriptivo</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <TextField
                             name={field.name}
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Ej. Filtro de Aceite CAT de 15 micrones..."
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val)}
+                            className="w-full col-span-2 flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Nombre Descriptivo</Label>
+                            <Input
+                              id={field.name}
+                              placeholder="Ej. Filtro de Aceite CAT de 15 micrones..."
+                              onBlur={field.handleBlur}
+                              className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                            />
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </TextField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Costo Unitario en USD */}
                     <form.Field name="unit_cost_usd">
-                      {(field) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Costo Unitario (USD)</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <NumberField
                             name={field.name}
-                            type="number"
-                            step="0.01"
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(Number(e.target.value))}
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val || 0.01)}
+                            minValue={0.01}
+                            step={0.01}
+                            formatOptions={{
+                              style: "currency",
+                              currency: "USD",
+                            }}
+                            className="w-full flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Costo Unitario (USD)</Label>
+                            <NumberField.Group className="bg-default/60 border-border rounded-xl">
+                              <NumberField.DecrementButton className="text-foreground hover:bg-default" />
+                              <NumberField.Input
+                                id={field.name}
+                                onBlur={field.handleBlur}
+                                className="text-foreground text-center"
+                              />
+                              <NumberField.IncrementButton className="text-foreground hover:bg-default" />
+                            </NumberField.Group>
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </NumberField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Stock Mínimo */}
                     <form.Field name="stock_minimum">
-                      {(field) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Stock Mínimo Alerta</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <NumberField
                             name={field.name}
-                            type="number"
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(Number(e.target.value))}
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val || 0)}
+                            minValue={0}
+                            className="w-full flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Stock Mínimo Alerta</Label>
+                            <NumberField.Group className="bg-default/60 border-border rounded-xl">
+                              <NumberField.DecrementButton className="text-foreground hover:bg-default" />
+                              <NumberField.Input
+                                id={field.name}
+                                onBlur={field.handleBlur}
+                                className="text-foreground text-center"
+                              />
+                              <NumberField.IncrementButton className="text-foreground hover:bg-default" />
+                            </NumberField.Group>
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </NumberField>
+                        );
+                      }}
                     </form.Field>
 
                     {/* Stock Actual Físico */}
                     <form.Field name="stock_current">
-                      {(field) => (
-                        <div className="space-y-1.5 col-span-2">
-                          <Label htmlFor={field.name} className="text-slate-300 text-xs">Stock Físico Inicial</Label>
-                          <Input
-                            id={field.name}
+                      {(field) => {
+                        const hasError = field.state.meta.errors.length > 0;
+                        return (
+                          <NumberField
                             name={field.name}
-                            type="number"
+                            isRequired
+                            isInvalid={hasError}
                             value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(Number(e.target.value))}
-                            className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                          />
-                          {field.state.meta.errors.map((error) => (
-                            <p key={String(error)} className="text-xs text-rose-400 font-medium">
-                              {String(error)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                            onChange={(val) => field.handleChange(val || 0)}
+                            minValue={0}
+                            className="w-full col-span-2 flex flex-col gap-1.5"
+                          >
+                            <Label className="text-foreground/85 text-xs font-semibold">Stock Físico Inicial</Label>
+                            <NumberField.Group className="bg-default/60 border-border rounded-xl">
+                              <NumberField.DecrementButton className="text-foreground hover:bg-default" />
+                              <NumberField.Input
+                                id={field.name}
+                                onBlur={field.handleBlur}
+                                className="text-foreground text-center"
+                              />
+                              <NumberField.IncrementButton className="text-foreground hover:bg-default" />
+                            </NumberField.Group>
+                            {field.state.meta.errors.map((error) => (
+                              <FieldError key={String(error)} className="text-xs text-rose-400 font-medium">
+                                {String(error)}
+                              </FieldError>
+                            ))}
+                          </NumberField>
+                        );
+                      }}
                     </form.Field>
                   </div>
 
-                  <div className="flex gap-3 pt-3 border-t border-slate-800/80">
+                  <div className="flex gap-4 pt-4 border-t border-border mt-6">
                     <Button
                       type="submit"
                       disabled={createPartMutation.isPending}
-                      className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold"
+                      className="flex-1 rounded-xl bg-accent hover:bg-accent/80 text-accent-foreground font-semibold"
                     >
                       {createPartMutation.isPending ? "Registrando..." : "Registrar"}
                     </Button>
@@ -425,39 +531,17 @@ function RepuestosComponent() {
                       type="button"
                       variant="outline"
                       onClick={() => setDialogOpen(false)}
-                      className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
+                      className="flex-1 rounded-xl border-border text-foreground hover:bg-default"
                     >
                       Cancelar
                     </Button>
                   </div>
                 </form>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
-
-      {/* Control de Búsqueda */}
-      <div className="relative p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 backdrop-blur-md">
-        <SearchIcon className="absolute left-7 top-1/2 -translate-y-1/2 size-4.5 text-slate-500" />
-        <Input
-          type="text"
-          placeholder="Buscar repuestos por código o nombre..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-        />
-      </div>
-
-      {/* Tabla de Repuestos */}
-      {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-10 rounded-xl bg-slate-800/40" />
-          <Skeleton className="h-44 rounded-xl bg-slate-800/45" />
-        </div>
-      ) : (
-        <SparePartsTable parts={parts} canEdit={canEdit} />
-      )}
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
     </div>
   );
 }

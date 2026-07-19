@@ -3,7 +3,7 @@ import { Badge } from "@mantainer-system/ui/components/badge";
 import { Button, buttonVariants } from "@mantainer-system/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import type { MachineResponse, MachineStatus } from "../types";
-import { CpuIcon, CalendarIcon, GaugeIcon, ArrowRightIcon, Trash2Icon, RotateCcwIcon } from "lucide-react";
+import { CpuIcon, CalendarIcon, GaugeIcon, ArrowRightIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@mantainer-system/ui/lib/utils";
 import { useSoftDeleteMachine } from "../hooks/use-machines";
 

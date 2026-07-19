@@ -3,10 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@mantainer-system/ui/components/button";
-import { Input } from "@mantainer-system/ui/components/input";
-import { Label } from "@mantainer-system/ui/components/label";
+import { TextField, FieldError, Input, Label } from "@heroui/react";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
+import { Modal } from "@mantainer-system/ui/components/modal";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@mantainer-system/ui/components/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@mantainer-system/ui/components/table";
 import { Badge } from "@mantainer-system/ui/components/badge";
@@ -52,7 +51,6 @@ function UsuariosComponent() {
   const [editPassword, setEditPassword] = useState("");
   const queryClient = useQueryClient();
 
-  // 1. Obtener la lista de usuarios usando react-query y el plugin adminClient
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin", "users"],
     queryFn: async () => {
@@ -68,7 +66,6 @@ function UsuariosComponent() {
     },
   });
 
-  // 2. Mutación para crear usuarios
   const createUserMutation = useMutation({
     mutationFn: async (values: z.infer<typeof userSchema>) => {
       const res = await authClient.admin.createUser({
@@ -92,7 +89,6 @@ function UsuariosComponent() {
     },
   });
 
-  // 3. Mutación para cambiar el rol de un usuario
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: "admin" | "supervisor" | "mechanic" }) => {
       const res = await authClient.admin.setRole({
@@ -114,7 +110,6 @@ function UsuariosComponent() {
     },
   });
 
-  // 4. Mutación para eliminar un usuario
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const res = await authClient.admin.removeUser({
@@ -134,7 +129,6 @@ function UsuariosComponent() {
     },
   });
 
-  // 5. Mutación para actualizar credenciales de un usuario
   const updateCredentialsMutation = useMutation({
     mutationFn: async ({ userId, email, password }: { userId: string; email?: string; password?: string }) => {
       if (email && email.trim() !== "") {
@@ -175,7 +169,6 @@ function UsuariosComponent() {
     },
   });
 
-  // Formulario de creación de usuario
   const form = useForm({
     defaultValues: {
       name: "",
@@ -198,10 +191,10 @@ function UsuariosComponent() {
 
   if (!isAdmin) {
     return (
-      <div className="text-center py-12 bg-slate-900/20 border border-slate-800 rounded-3xl p-6 max-w-xl mx-auto">
+      <div className="text-center py-12 bg-surface/20 border border-border rounded-3xl p-6 max-w-xl mx-auto">
         <AlertTriangleIcon className="size-10 mx-auto text-rose-500 mb-2" />
-        <p className="text-slate-200 text-base font-bold">Acceso Restringido</p>
-        <p className="text-slate-400 text-xs mt-1">
+        <p className="text-foreground text-base font-bold">Acceso Restringido</p>
+        <p className="text-muted text-xs mt-1">
           Solo los usuarios con el rol de Administrador cuentan con autorización para gestionar las cuentas de usuario y los roles del sistema.
         </p>
       </div>
@@ -224,260 +217,307 @@ function UsuariosComponent() {
       {/* Cabecera de Página */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <UsersIcon className="size-6 text-indigo-400 animate-pulse" />
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <UsersIcon className="size-6 text-accent animate-pulse" />
             Gestión de Usuarios y Roles
           </h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted">
             Control de cuentas del taller, asignación de roles jerárquicos y políticas de acceso
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
-              <PlusIcon className="size-4" />
-              Registrar Usuario
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-md shadow-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <UsersIcon className="size-5 text-indigo-400" />
-                Registrar Nuevo Usuario
-              </DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                form.handleSubmit();
-              }}
-              className="space-y-4 mt-2"
-            >
-              {/* Nombre */}
-              <form.Field name="name">
-                {(field) => (
-                  <div className="space-y-1.5">
-                    <Label htmlFor={field.name} className="text-slate-300 text-xs">Nombre Completo</Label>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="Ej. Juan Pérez"
-                      className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                    />
-                    {field.state.meta.errors.map((error) => (
-                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
-                        {getErrorMessage(error)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </form.Field>
-
-              {/* Email */}
-              <form.Field name="email">
-                {(field) => (
-                  <div className="space-y-1.5">
-                    <Label htmlFor={field.name} className="text-slate-300 text-xs">Correo Electrónico</Label>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      type="email"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="Ej. juan@taller.com"
-                      className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                    />
-                    {field.state.meta.errors.map((error) => (
-                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
-                        {getErrorMessage(error)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </form.Field>
-
-              {/* Password */}
-              <form.Field name="password">
-                {(field) => (
-                  <div className="space-y-1.5">
-                    <Label htmlFor={field.name} className="text-slate-300 text-xs">Contraseña Inicial</Label>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      type="password"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="•••••••• (mínimo 8 caracteres)"
-                      className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                    />
-                    {field.state.meta.errors.map((error) => (
-                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
-                        {getErrorMessage(error)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </form.Field>
-
-              {/* Rol */}
-              <form.Field name="role">
-                {(field) => (
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-300 text-xs">Rol del Sistema</Label>
-                    <Select
-                      value={field.state.value}
-                      onValueChange={(val) => field.handleChange(val as "admin" | "supervisor" | "mechanic")}
-                    >
-                      <SelectTrigger className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl text-slate-300">
-                        <SelectValue placeholder="Seleccione un rol" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl">
-                        <SelectItem value="mechanic">Mecánico (Lectura / Ejecución)</SelectItem>
-                        <SelectItem value="supervisor">Supervisor (Planificación / Repuestos)</SelectItem>
-                        <SelectItem value="admin">Administrador (Control Total)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {field.state.meta.errors.map((error) => (
-                      <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
-                        {getErrorMessage(error)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </form.Field>
-
-              <div className="flex gap-3 pt-3 border-t border-slate-800/80">
-                <Button
-                  type="submit"
-                  disabled={createUserMutation.isPending}
-                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold"
-                >
-                  {createUserMutation.isPending ? "Registrando..." : "Registrar"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                  className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Diálogo para Editar Credenciales de Usuario */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-md shadow-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <PencilIcon className="size-5 text-indigo-400" />
-                Editar Credenciales de {selectedEditUser?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!selectedEditUser) return;
-                await updateCredentialsMutation.mutateAsync({
-                  userId: selectedEditUser.id,
-                  email: editEmail,
-                  password: editPassword,
-                });
-              }}
-              className="space-y-4 mt-2"
-            >
-              {/* Nuevo Email */}
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-email" className="text-slate-300 text-xs">Correo Electrónico</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="Ej. nuevo-correo@taller.com"
-                  className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                />
-                <p className="text-[10px] text-slate-400">Opcional. Deja en blanco para no modificar.</p>
-              </div>
-
-              {/* Nueva Contraseña */}
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-password" className="text-slate-300 text-xs">Nueva Contraseña</Label>
-                <Input
-                  id="edit-password"
-                  type="password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="•••••••• (mínimo 8 caracteres)"
-                  className="bg-slate-950/80 border-slate-800 focus:border-indigo-500 rounded-xl"
-                />
-                <p className="text-[10px] text-slate-400">Opcional. Deja en blanco para no modificar.</p>
-              </div>
-
-              <div className="flex gap-3 pt-3 border-t border-slate-800/80">
-                <Button
-                  type="submit"
-                  disabled={updateCredentialsMutation.isPending}
-                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold"
-                >
-                  {updateCredentialsMutation.isPending ? "Guardando..." : "Guardar Cambios"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditDialogOpen(false);
-                    setEditEmail("");
-                    setEditPassword("");
-                    setSelectedEditUser(null);
-                  }}
-                  className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="rounded-xl px-4 bg-accent hover:bg-accent/80 text-accent-foreground font-semibold flex items-center gap-1.5 shadow-md shadow-accent/20 h-8"
+        >
+          <PlusIcon className="size-4" />
+          Registrar Usuario
+        </Button>
       </div>
 
+      {/* Modal de Registro de Usuario (HeroUI v3 Modal) */}
+      <Modal isOpen={dialogOpen} onOpenChange={setDialogOpen}>
+        <Modal.Backdrop variant="blur">
+          <Modal.Container size="cover">
+            <Modal.Dialog className="max-w-md bg-background border border-border text-foreground shadow-2xl p-6 rounded-2xl">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading className="text-2xl font-bold flex items-center gap-2">
+                  <UsersIcon className="size-6 text-accent" />
+                  Registrar Nuevo Usuario
+                </Modal.Heading>
+                <p className="text-sm text-muted">
+                  Crea una nueva cuenta de acceso para el personal del taller operativo
+                </p>
+              </Modal.Header>
+              <Modal.Body className="p-0 pt-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    form.handleSubmit();
+                  }}
+                  className="space-y-4"
+                >
+                  {/* Nombre */}
+                  <form.Field name="name">
+                    {(field) => {
+                      const hasError = field.state.meta.errors.length > 0;
+                      return (
+                        <TextField
+                          name={field.name}
+                          isRequired
+                          isInvalid={hasError}
+                          value={field.state.value}
+                          onChange={(val) => field.handleChange(val)}
+                          className="w-full flex flex-col gap-1.5"
+                        >
+                          <Label className="text-foreground/85 text-xs font-semibold">Nombre Completo</Label>
+                          <Input
+                            id={field.name}
+                            placeholder="Ej. Juan Pérez"
+                            onBlur={field.handleBlur}
+                            className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                          />
+                          {field.state.meta.errors.map((error) => (
+                            <FieldError key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                              {getErrorMessage(error)}
+                            </FieldError>
+                          ))}
+                        </TextField>
+                      );
+                    }}
+                  </form.Field>
+
+                  {/* Email */}
+                  <form.Field name="email">
+                    {(field) => {
+                      const hasError = field.state.meta.errors.length > 0;
+                      return (
+                        <TextField
+                          name={field.name}
+                          isRequired
+                          isInvalid={hasError}
+                          value={field.state.value}
+                          onChange={(val) => field.handleChange(val)}
+                          className="w-full flex flex-col gap-1.5"
+                        >
+                          <Label className="text-foreground/85 text-xs font-semibold">Correo Electrónico</Label>
+                          <Input
+                            id={field.name}
+                            type="email"
+                            placeholder="Ej. juan@taller.com"
+                            onBlur={field.handleBlur}
+                            className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                          />
+                          {field.state.meta.errors.map((error) => (
+                            <FieldError key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                              {getErrorMessage(error)}
+                            </FieldError>
+                          ))}
+                        </TextField>
+                      );
+                    }}
+                  </form.Field>
+
+                  {/* Password */}
+                  <form.Field name="password">
+                    {(field) => {
+                      const hasError = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                      return (
+                        <TextField
+                          name={field.name}
+                          isRequired
+                          isInvalid={hasError}
+                          value={field.state.value}
+                          onChange={(val) => field.handleChange(val)}
+                          className="w-full flex flex-col gap-1.5"
+                        >
+                          <Label className="text-foreground/85 text-xs font-semibold">Contraseña Inicial</Label>
+                          <Input
+                            id={field.name}
+                            type="password"
+                            placeholder="•••••••• (mínimo 8 caracteres)"
+                            onBlur={field.handleBlur}
+                            className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                          />
+                          {field.state.meta.isTouched && field.state.meta.errors.map((error) => (
+                            <FieldError key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                              {getErrorMessage(error)}
+                            </FieldError>
+                          ))}
+                        </TextField>
+                      );
+                    }}
+                  </form.Field>
+
+                  {/* Rol */}
+                  <form.Field name="role">
+                    {(field) => (
+                      <div className="space-y-1.5 flex flex-col">
+                        <Label className="text-foreground/85 text-xs font-semibold">Rol del Sistema</Label>
+                        <Select
+                          value={field.state.value}
+                          onValueChange={(val: any) => field.handleChange(val as "admin" | "supervisor" | "mechanic")}
+                        >
+                          <SelectTrigger className="bg-default/60 border-border rounded-xl text-foreground text-sm h-9">
+                            <SelectValue placeholder="Seleccione un rol" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-overlay border border-border text-foreground rounded-xl">
+                            <SelectItem value="mechanic">Mecánico (Lectura / Ejecución)</SelectItem>
+                            <SelectItem value="supervisor">Supervisor (Planificación / Repuestos)</SelectItem>
+                            <SelectItem value="admin">Administrador (Control Total)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {field.state.meta.errors.map((error) => (
+                          <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium mt-1">
+                            {getErrorMessage(error)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </form.Field>
+
+                  <div className="flex gap-4 pt-4 border-t border-border mt-6">
+                    <Button
+                      type="submit"
+                      disabled={createUserMutation.isPending}
+                      className="flex-1 rounded-xl bg-accent hover:bg-accent/80 text-accent-foreground font-semibold"
+                    >
+                      {createUserMutation.isPending ? "Registrando..." : "Registrar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDialogOpen(false)}
+                      className="flex-1 rounded-xl border-border text-foreground hover:bg-default"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      {/* Modal de Edición de Credenciales (HeroUI v3 Modal) */}
+      <Modal isOpen={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <Modal.Backdrop variant="blur">
+          <Modal.Container size="cover">
+            <Modal.Dialog className="max-w-md bg-background border border-border text-foreground shadow-2xl p-6 rounded-2xl">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading className="text-2xl font-bold flex items-center gap-2">
+                  <PencilIcon className="size-6 text-accent" />
+                  Editar Credenciales
+                </Modal.Heading>
+                <p className="text-sm text-muted">
+                  Actualiza el correo y contraseña de {selectedEditUser?.name}
+                </p>
+              </Modal.Header>
+              <Modal.Body className="p-0 pt-4">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!selectedEditUser) return;
+                    await updateCredentialsMutation.mutateAsync({
+                      userId: selectedEditUser.id,
+                      email: editEmail,
+                      password: editPassword,
+                    });
+                  }}
+                  className="space-y-4"
+                >
+                  {/* Nuevo Email */}
+                  <TextField
+                    className="w-full flex flex-col gap-1.5"
+                    value={editEmail}
+                    onChange={(val) => setEditEmail(val)}
+                  >
+                    <Label className="text-foreground/85 text-xs font-semibold">Correo Electrónico</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      placeholder="Ej. nuevo-correo@taller.com"
+                      className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                    />
+                    <p className="text-[10px] text-muted">Opcional. Deja en blanco para no modificar.</p>
+                  </TextField>
+
+                  {/* Nueva Contraseña */}
+                  <TextField
+                    className="w-full flex flex-col gap-1.5"
+                    value={editPassword}
+                    onChange={(val) => setEditPassword(val)}
+                  >
+                    <Label className="text-foreground/85 text-xs font-semibold">Nueva Contraseña</Label>
+                    <Input
+                      id="edit-password"
+                      type="password"
+                      placeholder="•••••••• (mínimo 8 caracteres)"
+                      className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                    />
+                    <p className="text-[10px] text-muted">Opcional. Deja en blanco para no modificar.</p>
+                  </TextField>
+
+                  <div className="flex gap-4 pt-4 border-t border-border mt-6">
+                    <Button
+                      type="submit"
+                      disabled={updateCredentialsMutation.isPending}
+                      className="flex-1 rounded-xl bg-accent hover:bg-accent/80 text-accent-foreground font-semibold"
+                    >
+                      {updateCredentialsMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setEditDialogOpen(false);
+                        setEditEmail("");
+                        setEditPassword("");
+                        setSelectedEditUser(null);
+                      }}
+                      className="flex-1 rounded-xl border-border text-foreground hover:bg-default"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
 
       {/* Tabla de Usuarios */}
-      <Card className="border-slate-800/80 bg-slate-900/40 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
-        <CardHeader className="border-b border-slate-800/60 pb-4">
-          <CardTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <ShieldCheckIcon className="size-5 text-indigo-400" />
+      <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="border-b border-border/60 pb-4">
+          <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+            <ShieldCheckIcon className="size-5 text-accent" />
             Personal Registrado y Niveles de Acceso
           </CardTitle>
-          <CardDescription className="text-xs text-slate-400">
+          <CardDescription className="text-xs text-muted">
             Lista completa de usuarios autenticados que tienen permitido el acceso al portal del taller
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 space-y-4">
-              <Skeleton className="h-10 rounded-xl bg-slate-800/40" />
-              <Skeleton className="h-44 rounded-xl bg-slate-800/45" />
+              <Skeleton className="h-10 rounded-xl bg-default/50" />
+              <Skeleton className="h-44 rounded-xl bg-default/50" />
             </div>
           ) : (
             <Table>
-              <TableHeader className="bg-slate-950/40 border-b border-slate-850">
+              <TableHeader className="bg-default/40 border-b border-border">
                 <TableRow>
-                  <TableHead className="font-semibold text-slate-300 text-xs px-6 py-4">Usuario</TableHead>
-                  <TableHead className="font-semibold text-slate-300 text-xs px-6 py-4">Correo Electrónico</TableHead>
-                  <TableHead className="font-semibold text-slate-300 text-xs px-6 py-4">Nivel de Acceso</TableHead>
-                  <TableHead className="font-semibold text-slate-300 text-xs px-6 py-4">Cambiar Rol</TableHead>
-                  <TableHead className="font-semibold text-slate-300 text-xs px-6 py-4 text-right">Acciones</TableHead>
+                  <TableHead className="font-semibold text-foreground/80 text-xs px-6 py-4">Usuario</TableHead>
+                  <TableHead className="font-semibold text-foreground/80 text-xs px-6 py-4">Correo Electrónico</TableHead>
+                  <TableHead className="font-semibold text-foreground/80 text-xs px-6 py-4">Nivel de Acceso</TableHead>
+                  <TableHead className="font-semibold text-foreground/80 text-xs px-6 py-4">Cambiar Rol</TableHead>
+                  <TableHead className="font-semibold text-foreground/80 text-xs px-6 py-4 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -487,36 +527,35 @@ function UsuariosComponent() {
                   const isModifyDisabled = isSelf || isAdminUser || changeRoleMutation.isPending;
 
                   return (
-                    <TableRow key={item.id} className="border-b border-slate-850 hover:bg-slate-900/20 transition-colors">
+                    <TableRow key={item.id} className="border-b border-border hover:bg-default/25 transition-colors">
                       <TableCell className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center font-bold text-indigo-400">
+                          <div className="size-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-accent">
                             {item.name[0].toUpperCase()}
                           </div>
-                          <span className="font-bold text-slate-200 text-xs">
+                          <span className="font-bold text-foreground text-xs">
                             {item.name}
                             {isSelf && (
-                              <span className="text-indigo-400 font-normal text-[10px] ml-1.5 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-900/30">
+                              <span className="text-accent font-normal text-[10px] ml-1.5 bg-accent/15 px-1.5 py-0.5 rounded border border-accent/20">
                                 Tú
                               </span>
                             )}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-xs font-mono text-slate-400">
+                      <TableCell className="px-6 py-4 text-xs font-mono text-muted">
                         <div className="flex items-center gap-1.5">
-                          <MailIcon className="size-3.5 text-slate-500" />
+                          <MailIcon className="size-3.5 text-muted/80" />
                           {item.email}
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4">
                         {getRoleBadge(item.role || "")}
-
                       </TableCell>
                       <TableCell className="px-6 py-4">
                         <Select
                           value={item.role}
-                          onValueChange={(val) =>
+                          onValueChange={(val: any) =>
                             changeRoleMutation.mutate({
                               userId: item.id,
                               role: val as "admin" | "supervisor" | "mechanic",
@@ -524,10 +563,10 @@ function UsuariosComponent() {
                           }
                           disabled={isModifyDisabled}
                         >
-                          <SelectTrigger className="w-40 bg-slate-950/60 border-slate-800 rounded-lg text-[11px] h-8 text-slate-300 disabled:opacity-50">
+                          <SelectTrigger className="w-40 bg-default/60 border-border rounded-lg text-[11px] h-8 text-foreground disabled:opacity-50">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-slate-950 border border-slate-800 text-slate-100 rounded-lg">
+                          <SelectContent className="bg-overlay border border-border text-foreground rounded-lg">
                             <SelectItem value="mechanic">Mecánico</SelectItem>
                             <SelectItem value="supervisor">Supervisor</SelectItem>
                             <SelectItem value="admin">Administrador</SelectItem>
@@ -536,15 +575,15 @@ function UsuariosComponent() {
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
                         {isSelf || isAdminUser ? (
-                          <div className="flex justify-end pr-2 text-slate-500" title="Protegido contra cambios/eliminación">
-                            <LockIcon className="size-4 text-slate-600" />
+                          <div className="flex justify-end pr-2 text-muted" title="Protegido contra cambios/eliminación">
+                            <LockIcon className="size-4 text-muted/60" />
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="rounded-lg text-indigo-400 hover:text-indigo-200 hover:bg-indigo-950/30 border border-transparent hover:border-indigo-900/30 transition-all duration-200 size-8"
+                              className="rounded-lg text-accent hover:text-accent-foreground hover:bg-accent/20 border border-transparent hover:border-accent/20 transition-all duration-200 size-8"
                               onClick={() => {
                                 setSelectedEditUser(item);
                                 setEditEmail(item.email);
@@ -557,7 +596,7 @@ function UsuariosComponent() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/30 transition-all duration-200 size-8"
+                              className="rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/35 border border-transparent hover:border-rose-900/35 transition-all duration-200 size-8"
                               onClick={() => {
                                 if (confirm(`¿Está seguro de eliminar de forma permanente al usuario "${item.name}"?`)) {
                                   deleteUserMutation.mutate(item.id);

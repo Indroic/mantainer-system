@@ -1,9 +1,9 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@mantainer-system/ui/components/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@mantainer-system/ui/components/card";
 import { Badge } from "@mantainer-system/ui/components/badge";
-import { Button, buttonVariants } from "@mantainer-system/ui/components/button";
+import { buttonVariants } from "@mantainer-system/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import type { MaintenanceOrderResponse, OrderStatus } from "../types";
-import { WrenchIcon, ClipboardListIcon, CalendarIcon, UserIcon, ArrowRightIcon, CpuIcon } from "lucide-react";
+import { ClipboardListIcon, CalendarIcon, UserIcon, ArrowRightIcon, CpuIcon } from "lucide-react";
 import { cn } from "@mantainer-system/ui/lib/utils";
 
 interface KanbanBoardProps {

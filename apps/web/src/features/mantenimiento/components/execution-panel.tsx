@@ -12,7 +12,6 @@ import {
   PackagePlusIcon,
   AlertTriangleIcon,
   GaugeIcon,
-  ClipboardListIcon,
   CoinsIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -52,7 +51,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
   const isHorometerInvalid = horometerInput < (order.machine?.current_horometer || 0);
 
   const handleStart = async () => {
-    await startMutation.mutateAsync();
+    await startMutation.mutateAsync(undefined);
   };
 
   const handleAddSparePart = async (e: React.FormEvent) => {
