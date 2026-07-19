@@ -49,19 +49,19 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
 
   return (
     <Card className={cn(
-      "group relative overflow-hidden rounded-2xl border bg-slate-900/40 backdrop-blur-md transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5",
-      isBaja ? "border-slate-800/80 opacity-60" : "border-slate-800/80"
+      "group relative overflow-hidden rounded-2xl border bg-surface/40 backdrop-blur-md transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5 flex flex-col justify-between h-full",
+      isBaja ? "border-border opacity-60" : "border-border"
     )}>
       {/* Sutil gradiente superior decorativo */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500/0 via-indigo-500/20 to-indigo-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/0 via-accent/20 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
         <div className="space-y-1">
-          <CardTitle className="text-xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
-            <CpuIcon className="size-5 text-indigo-400" />
+          <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <CpuIcon className="size-5 text-accent" />
             {machine.code}
           </CardTitle>
-          <CardDescription className="text-xs text-slate-400">
+          <CardDescription className="text-xs text-muted">
             {machine.brand} {machine.model}
           </CardDescription>
         </div>
@@ -70,24 +70,24 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
         </Badge>
       </CardHeader>
 
-      <CardContent className="space-y-3 pb-6">
-        <div className="flex items-center gap-3 text-sm text-slate-300">
-          <div className="p-1.5 rounded-lg bg-slate-800/50 text-indigo-400">
+      <CardContent className="space-y-3 pb-6 flex-1">
+        <div className="flex items-center gap-3 text-sm text-foreground">
+          <div className="p-1.5 rounded-lg bg-default/60 text-accent">
             <GaugeIcon className="size-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase">Horómetro Actual</p>
-            <p className="font-mono text-sm font-bold text-slate-200">{machine.current_horometer.toFixed(1)} hrs</p>
+            <p className="text-[10px] text-muted font-semibold uppercase">Horómetro Actual</p>
+            <p className="font-mono text-sm font-bold text-foreground">{machine.current_horometer.toFixed(1)} hrs</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-sm text-slate-300">
-          <div className="p-1.5 rounded-lg bg-slate-800/50 text-indigo-400">
+        <div className="flex items-center gap-3 text-sm text-foreground">
+          <div className="p-1.5 rounded-lg bg-default/60 text-accent">
             <CalendarIcon className="size-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase">Año de Fabricación</p>
-            <p className="text-sm font-bold text-slate-200">{machine.manufacture_year}</p>
+            <p className="text-[10px] text-muted font-semibold uppercase">Año de Fabricación</p>
+            <p className="text-sm font-bold text-foreground">{machine.manufacture_year}</p>
           </div>
         </div>
       </CardContent>

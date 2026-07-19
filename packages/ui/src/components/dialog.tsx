@@ -6,11 +6,9 @@ import {
   ModalBackdrop,
   ModalContainer,
   ModalDialog,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
   ModalCloseTrigger
 } from "@heroui/react"
+import { cn } from "../lib/utils"
 
 const DialogContext = React.createContext<{
   open?: boolean;
@@ -97,15 +95,13 @@ function DialogClose({ children, asChild }: any) {
   );
 }
 
-function DialogContent({ children, ...props }: any) {
+function DialogContent({ children, className, ...props }: any) {
   return (
     <ModalBackdrop className="bg-backdrop">
       <ModalContainer size="sm">
-        <ModalDialog className="bg-overlay border border-border text-foreground shadow-2xl p-6 relative rounded-2xl max-w-md" {...props}>
-          <ModalBody className="p-0">
-            {children}
-            <ModalCloseTrigger className="absolute top-4 right-4 text-muted hover:text-foreground p-1 rounded-lg" />
-          </ModalBody>
+        <ModalDialog className={cn("bg-background border border-border text-foreground shadow-2xl p-6 relative rounded-2xl max-w-md", className)} {...props}>
+          {children}
+          <ModalCloseTrigger className="absolute top-4 right-4 text-muted hover:text-foreground p-1 rounded-lg" />
         </ModalDialog>
       </ModalContainer>
     </ModalBackdrop>
@@ -113,19 +109,19 @@ function DialogContent({ children, ...props }: any) {
 }
 
 function DialogHeader({ className, ...props }: any) {
-  return <ModalHeader className="flex flex-col gap-1 text-left px-0 pt-0 pb-4" {...props} />;
+  return <div className={cn("flex flex-col gap-1 text-left pb-4", className)} {...props} />;
 }
 
 function DialogFooter({ className, ...props }: any) {
-  return <ModalFooter className="flex justify-end gap-2 px-0 pb-0 pt-4" {...props} />;
+  return <div className={cn("flex justify-end gap-2 pt-4", className)} {...props} />;
 }
 
 function DialogTitle({ className, ...props }: any) {
-  return <h3 className="text-base font-semibold text-foreground" {...props} />;
+  return <h3 className={cn("text-base font-semibold text-foreground", className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: any) {
-  return <p className="text-xs text-muted mt-1" {...props} />;
+  return <p className={cn("text-xs text-muted mt-1", className)} {...props} />;
 }
 
 export {

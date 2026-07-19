@@ -1,11 +1,9 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@mantainer-system/ui/components/table";
 import { Badge } from "@mantainer-system/ui/components/badge";
 import { Button } from "@mantainer-system/ui/components/button";
-import { Input } from "@mantainer-system/ui/components/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
-import { Label } from "@mantainer-system/ui/components/label";
+import { Modal, NumberField, Input, Label } from "@heroui/react";
 import type { SparePartResponse } from "../types";
-import { AlertTriangleIcon, PackageIcon, Trash2Icon } from "lucide-react";
+import { AlertTriangleIcon, PackageIcon, Trash2Icon, Edit3Icon } from "lucide-react";
 import { useState } from "react";
 import { useUpdateSparePartStock, useSoftDeleteSparePart } from "../hooks/use-spare-parts";
 import { cn } from "@mantainer-system/ui/lib/utils";
@@ -21,10 +19,16 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
   const canSeeFinancials = isAdmin || isSupervisor;
   const [selectedPart, setSelectedPart] = useState<SparePartResponse | null>(null);
   const [newStock, setNewStock] = useState<number>(0);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const updateStockMutation = useUpdateSparePartStock();
   const deleteMutation = useSoftDeleteSparePart();
+
+  const handleOpenStockModal = (part: SparePartResponse) => {
+    setSelectedPart(part);
+    setNewStock(part.stock_current);
+    setIsModalOpen(true);
+  };
 
   const handleUpdateStock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +39,7 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
       new_stock: newStock,
     }, {
       onSuccess: () => {
-        setDialogOpen(false);
+        setIsModalOpen(false);
         setSelectedPart(null);
       }
     });
@@ -49,26 +53,26 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/40 backdrop-blur-md">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm backdrop-blur-md">
         <Table>
-          <TableHeader className="bg-slate-950/40 border-b border-slate-800/80">
+          <TableHeader className="bg-default/40 border-b border-border">
             <TableRow>
-              <TableHead className="font-semibold text-slate-300">Código</TableHead>
-              <TableHead className="font-semibold text-slate-300">Código Interno</TableHead>
-              <TableHead className="font-semibold text-slate-300">Nº de Parte</TableHead>
-              <TableHead className="font-semibold text-slate-300">Nombre</TableHead>
-              <TableHead className="font-semibold text-slate-300">U. Medida</TableHead>
-              {canSeeFinancials && <TableHead className="font-semibold text-slate-300 text-right">Costo Unitario</TableHead>}
-              <TableHead className="font-semibold text-slate-300 text-right">Stock Mínimo</TableHead>
-              <TableHead className="font-semibold text-slate-300 text-right">Stock Actual</TableHead>
-              <TableHead className="font-semibold text-slate-300">Estado</TableHead>
-              {canEdit && <TableHead className="font-semibold text-slate-300 text-right">Acciones</TableHead>}
+              <TableHead className="font-semibold text-foreground">Código</TableHead>
+              <TableHead className="font-semibold text-foreground">Código Interno</TableHead>
+              <TableHead className="font-semibold text-foreground">Nº de Parte</TableHead>
+              <TableHead className="font-semibold text-foreground">Nombre</TableHead>
+              <TableHead className="font-semibold text-foreground">U. Medida</TableHead>
+              {canSeeFinancials && <TableHead className="font-semibold text-foreground text-right">Costo Unitario</TableHead>}
+              <TableHead className="font-semibold text-foreground text-right">Stock Mínimo</TableHead>
+              <TableHead className="font-semibold text-foreground text-right">Stock Actual</TableHead>
+              <TableHead className="font-semibold text-foreground">Estado</TableHead>
+              {canEdit && <TableHead className="font-semibold text-foreground text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {parts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canSeeFinancials ? (canEdit ? 10 : 9) : (canEdit ? 9 : 8)} className="text-center py-10 text-slate-500 font-medium">
+                <TableCell colSpan={canSeeFinancials ? (canEdit ? 10 : 9) : (canEdit ? 9 : 8)} className="text-center py-10 text-muted font-medium">
                   No se encontraron repuestos en el inventario.
                 </TableCell>
               </TableRow>
@@ -80,35 +84,35 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
                   <TableRow
                     key={part.id}
                     className={cn(
-                      "transition-colors duration-150 hover:bg-slate-800/20 border-b border-slate-800/50",
-                      isUnderStock && "bg-rose-950/5 hover:bg-rose-950/10"
+                      "transition-colors duration-150 hover:bg-default/40 border-b border-border",
+                      isUnderStock && "bg-rose-500/5 hover:bg-rose-500/10"
                     )}
                   >
-                    <TableCell className="font-mono font-bold text-indigo-400">{part.code}</TableCell>
-                    <TableCell className="font-mono text-slate-300 text-xs">{part.internal_code || "—"}</TableCell>
-                    <TableCell className="font-mono text-slate-300 text-xs">{part.part_number || "—"}</TableCell>
-                    <TableCell className="font-medium text-slate-200">{part.name}</TableCell>
-                    <TableCell className="text-slate-300 text-xs">{part.unit_of_measure || "—"}</TableCell>
+                    <TableCell className="font-mono font-bold text-accent">{part.code}</TableCell>
+                    <TableCell className="font-mono text-muted text-xs">{part.internal_code || "—"}</TableCell>
+                    <TableCell className="font-mono text-muted text-xs">{part.part_number || "—"}</TableCell>
+                    <TableCell className="font-medium text-foreground">{part.name}</TableCell>
+                    <TableCell className="text-muted text-xs">{part.unit_of_measure || "—"}</TableCell>
                     {canSeeFinancials && (
-                      <TableCell className="text-right font-mono text-slate-300">
+                      <TableCell className="text-right font-mono text-foreground">
                         ${(part.unit_cost_usd ?? part.unit_cost).toFixed(2)}
                       </TableCell>
                     )}
-                    <TableCell className="text-right font-mono text-slate-400">{part.stock_minimum}</TableCell>
+                    <TableCell className="text-right font-mono text-muted">{part.stock_minimum}</TableCell>
                     <TableCell className={cn(
                       "text-right font-mono font-bold",
-                      isUnderStock ? "text-rose-400" : "text-slate-200"
+                      isUnderStock ? "text-rose-500" : "text-foreground"
                     )}>
                       {part.stock_current}
                     </TableCell>
                     <TableCell>
                       {isUnderStock ? (
                         <Badge variant="destructive" className="flex items-center gap-1 w-fit rounded-lg px-2 py-0.5 border border-rose-500/20 font-bold uppercase text-[9px]">
-                          <AlertTriangleIcon className="size-3" data-icon="inline-start" />
+                          <AlertTriangleIcon className="size-3" />
                           Reorden
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg px-2 py-0.5 font-bold uppercase text-[9px]">
+                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg px-2 py-0.5 font-bold uppercase text-[9px]">
                           Saludable
                         </Badge>
                       )}
@@ -116,70 +120,22 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
 
                     {canEdit && (
                       <TableCell className="text-right space-x-2">
-                        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedPart(part);
-                                setNewStock(part.stock_current);
-                                setDialogOpen(true);
-                              }}
-                              className="rounded-xl text-indigo-400 hover:text-indigo-200 hover:bg-indigo-950/20"
-                            >
-                              Ajustar Stock
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-2xl max-w-sm">
-                            <DialogHeader>
-                              <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                                <PackageIcon className="size-5 text-indigo-400" />
-                                Ajustar Stock Físico
-                              </DialogTitle>
-                            </DialogHeader>
-                            <form onSubmit={handleUpdateStock} className="space-y-4 mt-2">
-                              <div className="space-y-1">
-                                <p className="text-xs text-slate-400">Repuesto:</p>
-                                <p className="text-sm font-bold text-slate-200">{selectedPart?.name} ({selectedPart?.code})</p>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="stockInput" className="text-slate-300 text-xs">Nuevo Stock Físico</Label>
-                                <Input
-                                  id="stockInput"
-                                  type="number"
-                                  value={newStock}
-                                  onChange={(e) => setNewStock(Number(e.target.value))}
-                                  className="bg-slate-950/80 border-slate-800 rounded-xl"
-                                />
-                              </div>
-                              <div className="flex gap-3 pt-2">
-                                <Button
-                                  type="submit"
-                                  disabled={updateStockMutation.isPending}
-                                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold"
-                                >
-                                  {updateStockMutation.isPending ? "Guardando..." : "Guardar"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => setDialogOpen(false)}
-                                  className="flex-1 rounded-xl border-slate-800 text-slate-300 hover:bg-slate-800"
-                                >
-                                  Cancelar
-                                </Button>
-                              </div>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenStockModal(part)}
+                          className="rounded-xl text-accent hover:text-accent-foreground hover:bg-accent/10"
+                        >
+                          <Edit3Icon className="size-3.5 mr-1" />
+                          Ajustar Stock
+                        </Button>
 
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(part.id, part.code)}
                           disabled={deleteMutation.isPending}
-                          className="rounded-xl text-rose-400 hover:text-rose-200 hover:bg-rose-950/20"
+                          className="rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                         >
                           <Trash2Icon className="size-4" />
                         </Button>
@@ -192,6 +148,60 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
           </TableBody>
         </Table>
       </div>
+
+      {/* Modal para ajuste de stock físico */}
+      <Modal isOpen={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog className="sm:max-w-[400px]">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Icon className="bg-accent/10 text-accent">
+                  <PackageIcon className="size-5" />
+                </Modal.Icon>
+                <Modal.Heading>Ajustar Stock Físico</Modal.Heading>
+              </Modal.Header>
+
+              <form onSubmit={handleUpdateStock} className="space-y-4">
+                <div className="space-y-1 bg-default/40 p-3 rounded-xl border border-border">
+                  <p className="text-[10px] text-muted uppercase font-bold tracking-wider">Repuesto Seleccionado</p>
+                  <p className="text-sm font-bold text-foreground">{selectedPart?.name} ({selectedPart?.code})</p>
+                  <p className="text-xs text-muted">U. Medida: {selectedPart?.unit_of_measure}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <NumberField
+                    minValue={0}
+                    value={newStock}
+                    onChange={(val) => setNewStock(val || 0)}
+                  >
+                    <Label className="text-xs font-semibold text-foreground">Nuevo Stock Físico</Label>
+                    <Input className="font-mono text-sm" />
+                  </NumberField>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="submit"
+                    disabled={updateStockMutation.isPending}
+                    className="flex-1 rounded-xl bg-accent text-accent-foreground font-semibold"
+                  >
+                    {updateStockMutation.isPending ? "Guardando..." : "Guardar Ajuste"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 rounded-xl border-border text-foreground hover:bg-default"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
     </div>
   );
 }

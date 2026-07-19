@@ -112,13 +112,13 @@ export default function KanbanBoard({ orders }: KanbanBoardProps) {
           return (
             <div
               key={column.status}
-              className="flex flex-col h-[70vh] rounded-2xl border border-slate-800/80 bg-slate-900/20 p-4"
+              className="flex flex-col h-[70vh] rounded-2xl border border-border bg-surface/20 p-4"
             >
               {/* Encabezado de Columna */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
+              <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-200">{column.label}</span>
-                  <Badge className="bg-slate-800 text-slate-400 font-mono text-[10px] rounded-lg px-2 border-slate-700/60">
+                  <span className="text-sm font-bold text-foreground">{column.label}</span>
+                  <Badge className="bg-default/60 text-muted font-mono text-[10px] rounded-lg px-2 border-border">
                     {colOrders.length}
                   </Badge>
                 </div>
@@ -127,40 +127,40 @@ export default function KanbanBoard({ orders }: KanbanBoardProps) {
               {/* Contenedor de Tarjetas de Columna */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {colOrders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 border border-dashed border-slate-800 rounded-xl p-4 text-center">
-                    <p className="text-xs text-slate-500">Sin órdenes en esta columna</p>
+                  <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-xl p-4 text-center">
+                    <p className="text-xs text-muted">Sin órdenes en esta columna</p>
                   </div>
                 ) : (
                   colOrders.map((order) => (
                     <Card
                       key={order.id}
-                      className="group relative overflow-hidden bg-slate-900/50 hover:bg-slate-900 border-slate-800/80 hover:border-indigo-500/30 transition-all duration-300 rounded-xl"
+                      className="group relative overflow-hidden bg-surface/50 hover:bg-surface border-border hover:border-accent/30 transition-all duration-300 rounded-xl flex flex-col justify-between"
                     >
                       <CardHeader className="p-4 pb-2 space-y-1">
                         <div className="flex justify-between items-center">
-                          <span className="font-mono text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-bold text-accent flex items-center gap-1.5">
                             <CpuIcon className="size-3.5" />
                             {order.machine?.code}
                           </span>
-                          <span className="text-[10px] text-slate-500">{new Date(order.created_at).toLocaleDateString()}</span>
+                          <span className="text-[10px] text-muted">{new Date(order.created_at).toLocaleDateString()}</span>
                         </div>
-                        <CardTitle className="text-sm font-semibold text-slate-100 line-clamp-1 group-hover:text-indigo-400 transition-colors">
+                        <CardTitle className="text-sm font-semibold text-foreground line-clamp-1 group-hover:text-accent transition-colors">
                           {order.description}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-4 pt-0 pb-3">
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <UserIcon className="size-3.5 text-slate-500" />
-                        <span className="truncate">{order.assigned_mechanic_name || "Mecánico Asignado"}</span>
-                      </div>
+                        <div className="flex items-center gap-2 text-xs text-muted">
+                          <UserIcon className="size-3.5 text-muted/80" />
+                          <span className="truncate">{order.assigned_mechanic_name || "Mecánico Asignado"}</span>
+                        </div>
                       </CardContent>
-                      <div className="px-4 py-3 bg-slate-950/20 border-t border-slate-800/40 flex justify-end">
+                      <div className="px-4 py-3 bg-default/40 border-t border-border flex justify-end mt-auto">
                         <Link
                           to="/mantenimiento/$id"
                           params={{ id: order.id }}
                           className={cn(
                             buttonVariants({ variant: "ghost", size: "sm" }),
-                            "rounded-lg text-indigo-400 hover:text-indigo-200 hover:bg-indigo-950/20 h-7 text-xs flex items-center gap-1"
+                            "rounded-lg text-accent hover:text-accent-foreground hover:bg-accent/20 h-7 text-xs flex items-center gap-1"
                           )}
                         >
                           Ejecutar Trabajo

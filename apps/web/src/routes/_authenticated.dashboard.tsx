@@ -65,54 +65,54 @@ function DashboardComponent() {
 
       {/* 2. Grid de Métricas Principales */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${(isAdmin || isSupervisor) ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-6`}>
-        <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Activos en Taller</p>
-              <p className="font-mono text-2xl font-extrabold text-slate-100">{machines.length}</p>
-              <p className="text-[10px] text-slate-400">{activeMachines} Activos · {inMaintenance} Mantenimiento</p>
+        <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
+          <CardContent className="p-5 flex items-center justify-between h-full">
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Activos en Taller</p>
+              <p className="font-mono text-2xl font-extrabold text-foreground">{machines.length}</p>
+              <p className="text-[10px] text-muted/80">{activeMachines} Activos · {inMaintenance} Mantenimiento</p>
             </div>
-            <div className="p-3 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400">
+            <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 text-accent shrink-0">
               <TruckIcon className="size-5.5" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Órdenes Programadas</p>
-              <p className="font-mono text-2xl font-extrabold text-slate-100">{pendingOrders}</p>
-              <p className="text-[10px] text-slate-400">Intervenciones técnicas en espera</p>
+        <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
+          <CardContent className="p-5 flex items-center justify-between h-full">
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Órdenes Programadas</p>
+              <p className="font-mono text-2xl font-extrabold text-foreground">{pendingOrders}</p>
+              <p className="text-[10px] text-muted/80">Intervenciones técnicas en espera</p>
             </div>
-            <div className="p-3 rounded-xl bg-amber-600/10 border border-amber-500/20 text-amber-400">
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
               <ClipboardListIcon className="size-5.5" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mantenimientos Activos</p>
-              <p className="font-mono text-2xl font-extrabold text-slate-100">{executingOrders}</p>
-              <p className="text-[10px] text-slate-400">Trabajos ejecutándose en caliente</p>
+        <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
+          <CardContent className="p-5 flex items-center justify-between h-full">
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Mantenimientos Activos</p>
+              <p className="font-mono text-2xl font-extrabold text-foreground">{executingOrders}</p>
+              <p className="text-[10px] text-muted/80">Trabajos ejecutándose en caliente</p>
             </div>
-            <div className="p-3 rounded-xl bg-cyan-600/10 border border-cyan-500/20 text-cyan-400">
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
               <WrenchIcon className="size-5.5" />
             </div>
           </CardContent>
         </Card>
 
         {(isAdmin || isSupervisor) && (
-          <Card className="border-slate-800/85 bg-slate-900/40 backdrop-blur-md rounded-2xl">
-            <CardContent className="p-5 flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Alertas de Stock</p>
-                <p className="font-mono text-2xl font-extrabold text-slate-100">{lowStockParts}</p>
-                <p className="text-[10px] text-slate-400">Repuestos por debajo del mínimo</p>
+          <Card className="border-border bg-surface/40 backdrop-blur-md rounded-2xl h-full flex flex-col justify-between">
+            <CardContent className="p-5 flex items-center justify-between h-full">
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Alertas de Stock</p>
+                <p className="font-mono text-2xl font-extrabold text-foreground">{lowStockParts}</p>
+                <p className="text-[10px] text-muted/80">Repuestos por debajo del mínimo</p>
               </div>
-              <div className="p-3 rounded-xl bg-rose-600/10 border border-rose-500/20 text-rose-400">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
                 <PackageIcon className="size-5.5" />
               </div>
             </CardContent>
@@ -122,23 +122,23 @@ function DashboardComponent() {
 
       {/* 3. Panel de Accesos Rápidos */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Acciones y Módulos</h3>
+        <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Acciones y Módulos</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Módulo Maquinaria */}
-          <Card className="group border-slate-800/80 bg-slate-900/30 hover:bg-slate-900 hover:border-indigo-500/30 transition-all duration-300 rounded-2xl">
+          <Card className="group flex flex-col justify-between h-full border-border bg-surface/30 hover:bg-surface hover:border-accent/30 transition-all duration-300 rounded-2xl">
             <CardHeader className="p-5 pb-3">
-              <CardTitle className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <CpuIcon className="size-5 text-indigo-400" />
+              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                <CpuIcon className="size-5 text-accent" />
                 Catálogo de Maquinarias
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400 leading-relaxed">
+              <CardDescription className="text-xs text-muted leading-relaxed">
                 Visualiza la flota de activos, actualiza horómetros en caliente e inspecciona historiales.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-5 pt-0">
+            <CardContent className="p-5 pt-0 mt-auto">
               <Link
                 to="/maquinaria"
-                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-200"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
               >
                 Ingresar al catálogo
                 <ArrowRightIcon className="size-4" />
@@ -147,20 +147,20 @@ function DashboardComponent() {
           </Card>
 
           {/* Módulo Mantenimiento */}
-          <Card className="group border-slate-800/80 bg-slate-900/30 hover:bg-slate-900 hover:border-indigo-500/30 transition-all duration-300 rounded-2xl">
+          <Card className="group flex flex-col justify-between h-full border-border bg-surface/30 hover:bg-surface hover:border-amber-500/30 transition-all duration-300 rounded-2xl">
             <CardHeader className="p-5 pb-3">
-              <CardTitle className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                 <WrenchIcon className="size-5 text-amber-400" />
                 Flujo de Mantenimientos
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400 leading-relaxed">
+              <CardDescription className="text-xs text-muted leading-relaxed">
                 Controla el tablero de órdenes de trabajo del taller o ejecuta reparaciones como mecánico.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-5 pt-0">
+            <CardContent className="p-5 pt-0 mt-auto">
               <Link
                 to="/mantenimiento"
-                className="inline-flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-200"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:underline"
               >
                 Abrir tablero de OTs
                 <ArrowRightIcon className="size-4" />
@@ -170,20 +170,20 @@ function DashboardComponent() {
 
           {/* Módulos Administrativos */}
           {(isAdmin || isSupervisor) && (
-            <Card className="group border-slate-800/80 bg-slate-900/30 hover:bg-slate-900 hover:border-indigo-500/30 transition-all duration-300 rounded-2xl">
+            <Card className="group flex flex-col justify-between h-full border-border bg-surface/30 hover:bg-surface hover:border-cyan-500/30 transition-all duration-300 rounded-2xl">
               <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                   <TrendingUpIcon className="size-5 text-cyan-400" />
                   Informes Financieros
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400 leading-relaxed">
+                <CardDescription className="text-xs text-muted leading-relaxed">
                   Inspecciona la inversión de repuestos por activo o gestiona el inventario físico del almacén.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-5 pt-0">
+              <CardContent className="p-5 pt-0 mt-auto">
                 <Link
                   to="/reportes"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-cyan-400 hover:text-cyan-200"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:underline"
                 >
                   Ver reportes financieros
                   <ArrowRightIcon className="size-4" />
