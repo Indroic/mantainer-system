@@ -45,7 +45,9 @@ class UserRepository(
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         if model:
-            return self.to_entity(model)
+            return await to_entity_from_model_or_document(
+                model, self.entity_cls, self.fields_resolvers
+            )
         return None
 
     async def list_by_role(self, role: UserRole) -> list[UserMetadata]:
