@@ -53,5 +53,11 @@ class Machine(BaseEntity):
         self.status = new_status
 
     def soft_delete(self) -> None:
-        """Aplica la baja lógica."""
+        """Aplica la baja lógica.
+
+        Además de marcar la máquina como inactiva, refleja explícitamente el
+        estado operativo ``DADA_DE_BAJA`` para que el catálogo (badge) y los
+        filtros por estado sean consistentes con la baja.
+        """
         self.is_active = False
+        self.status = MachineStatus.DADA_DE_BAJA

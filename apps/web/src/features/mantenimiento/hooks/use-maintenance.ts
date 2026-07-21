@@ -23,13 +23,17 @@ export function useOrders(filters?: { status?: string }) {
   });
 }
 
-export function useMechanics() {
+export function useMechanics(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["mechanics"],
     queryFn: async () => {
       return await apiClient.get<MechanicResponse[]>("/user-metadata/mechanics");
     },
     staleTime: 60 * 1000,
+    // El endpoint /user-metadata/mechanics está restringido a Administrador y
+    // Supervisor. Solo se necesita para programar OT (que el mecánico no puede),
+    // así que se desactiva para el rol mecánico y evitamos un 403 innecesario.
+    enabled: options?.enabled ?? true,
   });
 }
 

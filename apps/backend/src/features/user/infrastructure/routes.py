@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends, status
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import CurrentUser, get_current_user, require_roles
+from src.features.auth.dependencies import (
+    CurrentUser,
+    _parse_role,
+    get_current_user,
+    require_roles,
+)
 from src.features.user.application.dtos import (
     CreateOrUpdateUserMetadataCommand,
     MechanicResponse,
@@ -12,11 +17,14 @@ from src.features.user.application.use_cases.create_or_update_metadata import (
 from src.features.user.application.use_cases.get_user_metadata import (
     GetUserMetadataByBetterAuthIdUseCase,
 )
-from src.features.user.domain.entities import UserRole
+from src.features.user.domain.entities import UserMetadata, UserRole
 from src.features.user.domain.services import UserMetadataDomainService
 from src.features.user.infrastructure.repositories import UserRepository
 from src.shared.infrastructure.database.db import get_uow
-from src.shared.infrastructure.database.user_lookup import resolve_user_names
+from src.shared.infrastructure.database.user_lookup import (
+    list_users_with_roles,
+    resolve_user_names,
+)
 
 router = APIRouter(prefix="/user-metadata", tags=["User Metadata"])
 
@@ -65,21 +73,48 @@ async def list_mechanics(
 ) -> list[MechanicResponse]:
     """Lista los usuarios con rol Mecánico, para poblar selectores de asignación.
 
+    La fuente de verdad de usuarios y roles es Better Auth (tabla ``user``), no
+    la tabla local ``user_metadata``. Por eso leemos los mecánicos directamente
+    de Better Auth y, de forma idempotente, aseguramos que exista su fila en
+    ``user_metadata`` (cuyo ``id`` UUID es el que referencian las OT en
+    ``assigned_mechanic_id``). Así el selector se rellena automáticamente en
+    cuanto se crea un mecánico, sin pasos manuales.
+
     Restringido a Administradores y Supervisores (mismo criterio que programar OT).
     """
-    repo = UserRepository(uow)
-    mechanics = await repo.list_by_role(UserRole.MECANICO)
-
-    names = await resolve_user_names(uow.session, [m.better_auth_user_id for m in mechanics])
-
-    return [
-        MechanicResponse(
-            id=m.id,
-            better_auth_user_id=m.better_auth_user_id,
-            name=names.get(m.better_auth_user_id, m.better_auth_user_id),
-        )
-        for m in mechanics
+    # 1) Mecánicos según Better Auth (rol normalizado, robusto a idioma/mayúsculas).
+    all_users = await list_users_with_roles(uow.session)
+    ba_mechanics = [
+        (uid, name)
+        for (uid, name, role) in all_users
+        if _parse_role(role) == UserRole.MECANICO
     ]
+
+    if not ba_mechanics:
+        return []
+
+    # 2) Auto-provisión idempotente de user_metadata para obtener el UUID estable.
+    repo = UserRepository(uow)
+    response: list[MechanicResponse] = []
+    async with uow:
+        for better_auth_user_id, name in ba_mechanics:
+            metadata = await repo.get_by_better_auth_id(better_auth_user_id)
+            if metadata is None:
+                metadata = UserMetadata(
+                    better_auth_user_id=better_auth_user_id,
+                    role=UserRole.MECANICO,
+                    hourly_rate=0.0,
+                )
+                await repo.save(metadata)
+            response.append(
+                MechanicResponse(
+                    id=metadata.id,
+                    name=name or better_auth_user_id,
+                )
+            )
+        await uow.commit()
+
+    return response
 
 
 @router.get(

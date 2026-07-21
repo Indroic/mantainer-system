@@ -3,9 +3,9 @@ import { Badge } from "@mantainer-system/ui/components/badge";
 import { Button } from "@mantainer-system/ui/components/button";
 import { Modal, NumberField, Input, Label } from "@heroui/react";
 import type { SparePartResponse } from "../types";
-import { AlertTriangleIcon, PackageIcon, Trash2Icon, Edit3Icon } from "lucide-react";
+import { AlertTriangleIcon, PackageIcon, Trash2Icon, Edit3Icon, DollarSignIcon } from "lucide-react";
 import { useState } from "react";
-import { useUpdateSparePartStock, useSoftDeleteSparePart } from "../hooks/use-spare-parts";
+import { useUpdateSparePartStock, useUpdateSparePartPrice, useSoftDeleteSparePart } from "../hooks/use-spare-parts";
 import { cn } from "@mantainer-system/ui/lib/utils";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
@@ -20,14 +20,23 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
   const [selectedPart, setSelectedPart] = useState<SparePartResponse | null>(null);
   const [newStock, setNewStock] = useState<number>(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newPrice, setNewPrice] = useState<number>(0);
+  const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
 
   const updateStockMutation = useUpdateSparePartStock();
+  const updatePriceMutation = useUpdateSparePartPrice();
   const deleteMutation = useSoftDeleteSparePart();
 
   const handleOpenStockModal = (part: SparePartResponse) => {
     setSelectedPart(part);
     setNewStock(part.stock_current);
     setIsModalOpen(true);
+  };
+
+  const handleOpenPriceModal = (part: SparePartResponse) => {
+    setSelectedPart(part);
+    setNewPrice(part.unit_cost_usd ?? part.unit_cost);
+    setIsPriceModalOpen(true);
   };
 
   const handleUpdateStock = async (e: React.FormEvent) => {
@@ -40,6 +49,21 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
     }, {
       onSuccess: () => {
         setIsModalOpen(false);
+        setSelectedPart(null);
+      }
+    });
+  };
+
+  const handleUpdatePrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPart) return;
+
+    await updatePriceMutation.mutateAsync({
+      spare_part_id: selectedPart.id,
+      new_unit_cost_usd: newPrice,
+    }, {
+      onSuccess: () => {
+        setIsPriceModalOpen(false);
         setSelectedPart(null);
       }
     });
@@ -130,6 +154,18 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
                           Ajustar Stock
                         </Button>
 
+                        {canSeeFinancials && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenPriceModal(part)}
+                            className="rounded-xl text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                          >
+                            <DollarSignIcon className="size-3.5 mr-1" />
+                            Editar Precio
+                          </Button>
+                        )}
+
                         <Button
                           variant="ghost"
                           size="sm"
@@ -192,6 +228,64 @@ export default function SparePartsTable({ parts, canEdit = true }: SparePartsTab
                     type="button"
                     variant="outline"
                     onClick={() => setIsModalOpen(false)}
+                    className="flex-1 rounded-xl border-border text-foreground hover:bg-default"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      {/* Modal para edición del costo unitario (USD) */}
+      <Modal isOpen={isPriceModalOpen} onOpenChange={setIsPriceModalOpen}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog className="sm:max-w-[400px]">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Icon className="bg-emerald-500/10 text-emerald-500">
+                  <DollarSignIcon className="size-5" />
+                </Modal.Icon>
+                <Modal.Heading>Actualizar Costo Unitario</Modal.Heading>
+              </Modal.Header>
+
+              <form onSubmit={handleUpdatePrice} className="space-y-4">
+                <div className="space-y-1 bg-default/40 p-3 rounded-xl border border-border">
+                  <p className="text-[10px] text-muted uppercase font-bold tracking-wider">Repuesto Seleccionado</p>
+                  <p className="text-sm font-bold text-foreground">{selectedPart?.name} ({selectedPart?.code})</p>
+                  <p className="text-xs text-muted">
+                    Costo actual: ${(selectedPart?.unit_cost_usd ?? selectedPart?.unit_cost ?? 0).toFixed(2)} USD
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <NumberField
+                    minValue={0}
+                    step={0.01}
+                    value={newPrice}
+                    onChange={(val) => setNewPrice(val || 0)}
+                    formatOptions={{ style: "currency", currency: "USD" }}
+                  >
+                    <Label className="text-xs font-semibold text-foreground">Nuevo Costo Unitario ($ USD)</Label>
+                    <Input className="font-mono text-sm" />
+                  </NumberField>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="submit"
+                    disabled={updatePriceMutation.isPending}
+                    className="flex-1 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500"
+                  >
+                    {updatePriceMutation.isPending ? "Guardando..." : "Guardar Precio"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsPriceModalOpen(false)}
                     className="flex-1 rounded-xl border-border text-foreground hover:bg-default"
                   >
                     Cancelar

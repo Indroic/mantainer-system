@@ -27,19 +27,31 @@ function getErrorMessage(error: any): string {
 }
 
 const orderSchema = z.object({
-  machine_id: z.string().min(5, "Seleccione la maquinaria asociada"),
+  machine_id: z
+    .string()
+    .min(5, "Seleccione la maquinaria asociada")
+    .refine((v) => v !== "none", "Seleccione la maquinaria asociada"),
   description: z.string().min(5, "Describa el trabajo a realizar"),
-  assigned_mechanic_id: z.string().min(1, "Seleccione el mecánico asignado"),
+  // Debe ser un mecánico real: bloqueamos el placeholder "none" para no enviar
+  // un valor no-UUID que el backend rechazaría ("invalid character 'n'").
+  assigned_mechanic_id: z
+    .string()
+    .min(1, "Seleccione el mecánico asignado")
+    .refine((v) => v !== "none", "Seleccione el mecánico asignado"),
 });
 
 function MantenimientoIndexComponent() {
   const { isAdmin, isSupervisor } = useAuth();
+  const canCreate = isAdmin || isSupervisor;
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Queries
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
-  const { data: machines = [] } = useMachines({ status: "ACTIVA" }); // Programar solo en máquinas activas
-  const { data: mechanics = [] } = useMechanics();
+  // Máquinas y mecánicos solo se necesitan para el formulario de creación,
+  // que únicamente ven Administrador/Supervisor. Se desactivan para el rol
+  // mecánico (el endpoint de mecánicos les daría 403 y no lo requieren).
+  const { data: machines = [] } = useMachines({ status: "ACTIVA" }, { enabled: canCreate });
+  const { data: mechanics = [] } = useMechanics({ enabled: canCreate });
 
   // Mutación
   const createOrderMutation = useCreateOrder();
@@ -62,8 +74,6 @@ function MantenimientoIndexComponent() {
       onChange: orderSchema,
     },
   });
-
-  const canCreate = isAdmin || isSupervisor;
 
   return (
     <div className="space-y-8 animate-fade-in">

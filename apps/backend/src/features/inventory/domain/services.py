@@ -18,6 +18,10 @@ class InventoryDomainService(BaseDomainService):
         stock_minimum: int,
         unit_cost: float,
         stock_current: int,
+        part_number: str | None = None,
+        unit_of_measure: str | None = None,
+        internal_code: str | None = None,
+        unit_cost_usd: float | None = None,
     ) -> SparePart:
         """Crea y registra un nuevo repuesto."""
         spare_part = SparePart(
@@ -26,6 +30,10 @@ class InventoryDomainService(BaseDomainService):
             stock_minimum=stock_minimum,
             unit_cost=unit_cost,
             stock_current=stock_current,
+            part_number=part_number,
+            unit_of_measure=unit_of_measure,
+            internal_code=internal_code,
+            unit_cost_usd=unit_cost_usd,
         )
         await self._repo.save(spare_part)
         return spare_part

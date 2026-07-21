@@ -32,7 +32,7 @@ function RouteComponent() {
         <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
           <Link
             to="/setup-admin"
-            className="text-xs text-slate-500 transition-colors hover:text-emerald-400"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-indigo-400"
           >
             Configurar administrador inicial
           </Link>

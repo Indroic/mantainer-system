@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import type { SparePartResponse, CreateSparePartCommand, UpdateSparePartStockCommand } from "../types";
+import type {
+  SparePartResponse,
+  CreateSparePartCommand,
+  UpdateSparePartStockCommand,
+  UpdateSparePartPriceCommand,
+} from "../types";
 import { toast } from "sonner";
 
 export function useSpareParts(search?: string) {
@@ -47,6 +52,26 @@ export function useUpdateSparePartStock() {
     },
     onError: (error: any) => {
       toast.error(error?.message || "Error al actualizar el stock");
+    },
+  });
+}
+
+export function useUpdateSparePartPrice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (command: UpdateSparePartPriceCommand) => {
+      const { spare_part_id, new_unit_cost_usd } = command;
+      return await apiClient.put<SparePartResponse>(`/inventory/${spare_part_id}/price`, {
+        new_unit_cost_usd,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["spare-parts"] });
+      toast.success("Costo unitario actualizado con éxito");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Error al actualizar el costo unitario");
     },
   });
 }

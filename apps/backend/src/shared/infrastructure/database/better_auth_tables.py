@@ -13,4 +13,7 @@ user_table = Table(
     better_auth_metadata,
     Column("id", String, primary_key=True),
     Column("name", String, nullable=False),
+    # Columna del plugin admin de Better Auth. Guarda el rol de negocio
+    # (admin | supervisor | mechanic). La leemos para poblar selectores por rol.
+    Column("role", String, nullable=True),
 )

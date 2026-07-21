@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { cn } from "@mantainer-system/ui/lib/utils";
 import type { MachineStatus } from "@/features/maquinaria/types";
+import { horometerUnitAbbr, horometerNoun } from "@/features/maquinaria/types";
 
 export const Route = createFileRoute("/_authenticated/maquinaria/$id/")({
   component: MaquinariaFichaComponent,
@@ -164,8 +165,8 @@ function MaquinariaFichaComponent() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Horómetro de Alta</p>
-                  <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{machine.current_horometer} hrs</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{horometerNoun(machine.horometer_unit)} de Alta</p>
+                  <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{machine.current_horometer} {horometerUnitAbbr(machine.horometer_unit)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -177,13 +178,13 @@ function MaquinariaFichaComponent() {
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="text-sm font-bold text-card-foreground flex items-center gap-2">
                     <GaugeIcon className="size-4.5 text-accent" />
-                    Actualizar Horómetro
+                    Actualizar {horometerNoun(machine.horometer_unit)}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
                   <form onSubmit={handleUpdateHorometer} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="horometer" className="text-xs text-foreground/80">Horómetro Acumulado (hrs)</Label>
+                      <Label htmlFor="horometer" className="text-xs text-foreground/80">{horometerNoun(machine.horometer_unit)} Acumulado ({horometerUnitAbbr(machine.horometer_unit)})</Label>
                       <Input
                         id="horometer"
                         type="number"
@@ -194,7 +195,7 @@ function MaquinariaFichaComponent() {
                         className="bg-default/60 border-border rounded-xl"
                       />
                       <p className="text-[10px] text-muted-foreground font-medium">
-                        Horómetro actual del activo: {machine.current_horometer} hrs
+                        {horometerNoun(machine.horometer_unit)} actual del activo: {machine.current_horometer} {horometerUnitAbbr(machine.horometer_unit)}
                       </p>
                     </div>
 

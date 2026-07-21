@@ -7,8 +7,12 @@ import type {
   ChangeMachineStatusCommand,
 } from "../types";
 import { toast } from "sonner";
+import { horometerUnitAbbr, horometerNoun } from "../types";
 
-export function useMachines(filters?: { status?: string; search?: string }) {
+export function useMachines(
+  filters?: { status?: string; search?: string },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["machines", filters],
     queryFn: async () => {
@@ -23,6 +27,7 @@ export function useMachines(filters?: { status?: string; search?: string }) {
       return await apiClient.get<MachineResponse[]>("/machines/", { params });
     },
     staleTime: 30 * 1000, // Datos frescos durante 30 segundos
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -63,7 +68,9 @@ export function useUpdateHorometer(machineId: string) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["machines"] });
       queryClient.invalidateQueries({ queryKey: ["machines", machineId] });
-      toast.success(`Horómetro actualizado con éxito a ${data.current_horometer} hrs`);
+      toast.success(
+        `${horometerNoun(data.horometer_unit)} actualizado con éxito a ${data.current_horometer} ${horometerUnitAbbr(data.horometer_unit)}`
+      );
     },
     onError: (error: any) => {
       toast.error(error?.message || "Error al actualizar el horómetro");

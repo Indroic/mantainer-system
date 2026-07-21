@@ -32,3 +32,8 @@ export interface UpdateSparePartStockCommand {
   performed_by?: string;
 }
 
+export interface UpdateSparePartPriceCommand {
+  spare_part_id: string;
+  new_unit_cost_usd: number;
+}
+

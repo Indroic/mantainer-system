@@ -20,6 +20,10 @@ class CreateSparePartUseCase(UseCase[CreateSparePartCommand, SparePartResponse])
                 stock_minimum=command.stock_minimum,
                 unit_cost=command.unit_cost,
                 stock_current=command.stock_current,
+                part_number=command.part_number,
+                unit_of_measure=command.unit_of_measure,
+                internal_code=command.internal_code,
+                unit_cost_usd=command.unit_cost_usd,
             )
             
             # Registrar Auditoría Forense Activa
@@ -50,6 +54,10 @@ class CreateSparePartUseCase(UseCase[CreateSparePartCommand, SparePartResponse])
             stock_current=spare_part.stock_current,
             stock_minimum=spare_part.stock_minimum,
             unit_cost=spare_part.unit_cost,
+            part_number=spare_part.part_number,
+            unit_of_measure=spare_part.unit_of_measure,
+            internal_code=spare_part.internal_code,
+            unit_cost_usd=spare_part.unit_cost_usd,
             created_at=spare_part.created_at,
             updated_at=spare_part.updated_at,
             is_active=spare_part.is_active,

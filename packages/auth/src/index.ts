@@ -1,4 +1,4 @@
-import { createDb } from "@mantainer-system/db";
+import { createDb, insertAuditLog } from "@mantainer-system/db";
 import * as schema from "@mantainer-system/db/schema/auth";
 import { betterAuth, APIError } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
@@ -101,6 +101,49 @@ export function createAuth() {
               });
             }
           }
+        }
+      }),
+      // ---------------------------------------------------------------------
+      // Interceptor de AUDITORÍA FORENSE de eliminación de usuarios.
+      //
+      // El borrado de cuentas es un hard delete del plugin admin de Better Auth
+      // (POST /admin/remove-user); ni el server Hono ni el backend Hexcore
+      // participan en él, por lo que este `after` hook es el único punto del
+      // flujo donde se puede dejar traza. Escribimos directamente en la tabla
+      // `audit_logs` (misma BD Postgres) el evento con el ID del administrador
+      // que ejecutó la acción (`performed_by`) y el usuario objetivo.
+      //
+      // `entity_id` es una columna UUID en el modelo Hexcore, pero el ID de
+      // Better Auth es texto: por eso el identificador real del usuario borrado
+      // se guarda en `payload.target_user_id` y `entity_id` usa un UUID propio.
+      // ---------------------------------------------------------------------
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/admin/remove-user") return;
+
+        // Solo auditamos eliminaciones efectivas: si el endpoint devolvió un
+        // APIError (p. ej. bloqueado por el `before` hook), no hubo borrado.
+        if (ctx.context.returned instanceof APIError) return;
+
+        const body = ctx.body as { userId?: string } | undefined;
+        const targetUserId = body?.userId;
+        if (!targetUserId) return;
+
+        const performedBy = ctx.context.session?.user?.id ?? "system";
+
+        try {
+          await insertAuditLog({
+            entityName: "User",
+            action: "DELETE_USER",
+            performedBy,
+            payload: { target_user_id: targetUserId },
+          });
+        } catch (err) {
+          // La auditoría nunca debe romper el flujo de negocio: la cuenta ya se
+          // eliminó, así que solo registramos el fallo de escritura de la traza.
+          console.error(
+            "No se pudo registrar la auditoría de eliminación de usuario:",
+            err,
+          );
         }
       }),
     },

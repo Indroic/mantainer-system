@@ -3,6 +3,7 @@ import { Badge } from "@mantainer-system/ui/components/badge";
 import { Button, buttonVariants } from "@mantainer-system/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import type { MachineResponse, MachineStatus } from "../types";
+import { horometerUnitAbbr, horometerNoun } from "../types";
 import { CpuIcon, CalendarIcon, GaugeIcon, ArrowRightIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@mantainer-system/ui/lib/utils";
 import { useSoftDeleteMachine } from "../hooks/use-machines";
@@ -76,8 +77,8 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
             <GaugeIcon className="size-4" />
           </div>
           <div>
-            <p className="text-[10px] text-muted font-semibold uppercase">Horómetro Actual</p>
-            <p className="font-mono text-sm font-bold text-foreground">{machine.current_horometer.toFixed(1)} hrs</p>
+            <p className="text-[10px] text-muted font-semibold uppercase">{horometerNoun(machine.horometer_unit)} Actual</p>
+            <p className="font-mono text-sm font-bold text-foreground">{machine.current_horometer.toFixed(1)} {horometerUnitAbbr(machine.horometer_unit)}</p>
           </div>
         </div>
 
