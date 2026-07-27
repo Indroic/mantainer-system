@@ -23,7 +23,7 @@ COPY --from=builder /app/apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copiar el script de inyección de entorno dinámico
 COPY apps/web/inject-env.sh /docker-entrypoint.d/50-inject-env.sh
-RUN chmod +x /docker-entrypoint.d/50-inject-env.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/50-inject-env.sh && chmod +x /docker-entrypoint.d/50-inject-env.sh
 
 EXPOSE 80
 EXPOSE 3000

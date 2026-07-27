@@ -1,6 +1,24 @@
-version: '3.8'
-
 services:
+  # Base de datos PostgreSQL local
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sgmm_auth_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sgmm_auth_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   # Tarea de un solo disparo para ejecutar las migraciones de Better Auth (Drizzle)
   auth-migrate:
     build:
@@ -8,9 +26,10 @@ services:
       dockerfile: packages/db/Dockerfile.migrate
     container_name: auth-migrate
     environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
-    networks:
-      - dokploy-network
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: "no"
 
   # Tarea de un solo disparo para ejecutar las migraciones de la API FastAPI (Alembic)
@@ -20,12 +39,16 @@ services:
       dockerfile: Dockerfile
     container_name: backend-migrate
     environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
-    networks:
-      - dokploy-network
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - SQL_DATABASE_URL=${SQL_DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - ASYNC_SQL_DATABASE_URL=${ASYNC_SQL_DATABASE_URL:-postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
     entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: "no"
 
+  # Servidor de Autenticación Better Auth (Node.js)
   auth-server:
     build:
       context: .
@@ -33,17 +56,20 @@ services:
     container_name: auth-server
     environment:
       - PORT=3000
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
-      - BETTER_AUTH_SECRET=better_auth_secret_32_characters_long_key
-      - BETTER_AUTH_URL=http://localhost
-    networks:
-      - dokploy-network
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-better_auth_secret_32_characters_long_key}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
     restart: always
     depends_on:
+      postgres:
+        condition: service_healthy
       auth-migrate:
         condition: service_completed_successfully
 
+  # API REST FastAPI de Python
   backend:
     build:
       context: apps/backend
@@ -51,33 +77,38 @@ services:
     container_name: backend
     environment:
       - PORT=8000
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL es obligatorio}
-      - BETTER_AUTH_URL=http://auth-server:3000
-      - JWKS_URL=http://auth-server:3000/api/auth/jwks
-    networks:
-      - dokploy-network
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - SQL_DATABASE_URL=${SQL_DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - ASYNC_SQL_DATABASE_URL=${ASYNC_SQL_DATABASE_URL:-postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL_INTERNAL:-http://auth-server:3000}
+      - JWKS_URL=${JWKS_URL:-http://auth-server:3000/api/auth/jwks}
+    ports:
+      - "8000:8000"
     restart: always
     depends_on:
+      postgres:
+        condition: service_healthy
       backend-migrate:
         condition: service_completed_successfully
       auth-server:
         condition: service_started
 
+  # Frontend Web (Nginx SPA)
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     container_name: web
     environment:
-      - VITE_API_URL=http://localhost
-      - VITE_AUTH_URL=http://localhost
-    networks:
-      - dokploy-network
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - VITE_AUTH_URL=${VITE_AUTH_URL:-http://localhost:3000}
+    ports:
+      - "80:80"
     restart: always
     depends_on:
       - backend
       - auth-server
 
-networks:
-  dokploy-network:
-    name: dokploy-network
+volumes:
+  postgres_data:
+    name: sgmm_postgres_data_local
