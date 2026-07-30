@@ -28,6 +28,7 @@ class SparePartSolvencyModel(BaseModel):
     #: Numeración interna secuencial, p. ej. "SOLV-2026-0001". Único a nivel de BD
     #: para que dos emisiones concurrentes no puedan compartir el mismo folio.
     code = Column(String(30), unique=True, nullable=False, index=True)
+    solvency_type = Column(String(20), nullable=False, default="ASIGNACION", index=True)
     maintenance_order_id = Column(
         Uuid,
         ForeignKey("maintenance_orders.id", ondelete="CASCADE"),

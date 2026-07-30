@@ -69,9 +69,12 @@ export interface SolvencyItemResponse {
   subtotal: number;
 }
 
+export type SolvencyType = "ASIGNACION" | "DEVOLUCION";
+
 export interface SolvencyResponse {
   id: string;
   code: string;
+  solvency_type?: SolvencyType;
   maintenance_order_id: string;
   machine_id: string;
   machine_code?: string | null;

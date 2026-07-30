@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { Button } from "@mantainer-system/ui/components/button";
 import { TextField, NumberField, TextArea, Input, Label, FieldError } from "@heroui/react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@mantainer-system/ui/components/dialog";
 import { useCreateMachine, useMachineTypes, useCreateMachineType } from "../hooks/use-machines";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";

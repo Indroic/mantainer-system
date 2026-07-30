@@ -4,6 +4,7 @@ from uuid import UUID
 from hexcore.domain.services import BaseDomainService
 from src.features.solvency.domain.entities import (
     SolvencyStatus,
+    SolvencyType,
     SparePartSolvency,
 )
 
@@ -23,23 +24,25 @@ class SolvencyDomainService(BaseDomainService):
     async def get_by_id(self, solvency_id: UUID) -> SparePartSolvency:
         return await self._repo.get_by_id(solvency_id)
 
-    async def generate_code(self, *, year: int | None = None) -> str:
-        """Genera el folio interno secuencial con formato ``SOLV-AAAA-NNNN``.
+    async def generate_code(
+        self, *, year: int | None = None, prefix_code: str = "SOLV"
+    ) -> str:
+        """Genera el folio interno secuencial con formato ``{prefix}-AAAA-NNNN``.
 
         La unicidad definitiva la garantiza el índice único de ``code`` en la BD;
         aquí sondeamos folios libres para minimizar el conflicto entre emisiones
         simultáneas.
         """
         target_year = year or datetime.now(UTC).year
-        sequence = await self._repo.next_sequence_for_year(target_year)
+        sequence = await self._repo.next_sequence_for_year(target_year, prefix_code=prefix_code)
 
         for attempt in range(_MAX_CODE_ATTEMPTS):
-            candidate = f"SOLV-{target_year}-{sequence + attempt:04d}"
+            candidate = f"{prefix_code}-{target_year}-{sequence + attempt:04d}"
             if not await self._repo.exists_code(candidate):
                 return candidate
 
         # Último recurso: continuar avanzando desde el último sondeo.
-        return f"SOLV-{target_year}-{sequence + _MAX_CODE_ATTEMPTS:04d}"
+        return f"{prefix_code}-{target_year}-{sequence + _MAX_CODE_ATTEMPTS:04d}"
 
     async def issue_for_assignment(
         self,
@@ -67,6 +70,54 @@ class SolvencyDomainService(BaseDomainService):
 
         solvency = SparePartSolvency(
             code=await self.generate_code(),
+            maintenance_order_id=maintenance_order_id,
+            machine_id=machine_id,
+            machine_code=machine_code,
+            issued_by=issued_by,
+            status=SolvencyStatus.PENDIENTE_DESPACHO,
+            notes=notes,
+        )
+
+        for spare_part_id, quantity in items:
+            spare_part = await self._spare_part_repo.get_by_id(spare_part_id)
+            solvency.add_item(
+                spare_part_id=spare_part.id,
+                spare_part_code=spare_part.code,
+                spare_part_name=spare_part.name,
+                quantity=quantity,
+                unit_cost=float(
+                    getattr(spare_part, "unit_cost_usd", None) or spare_part.unit_cost or 0.0
+                ),
+            )
+
+        await self._repo.save(solvency)
+        return solvency
+
+    async def issue_for_return(
+        self,
+        *,
+        maintenance_order_id: UUID,
+        machine_id: UUID,
+        issued_by: str,
+        items: list[tuple[UUID, int]],
+        notes: str | None = None,
+    ) -> SparePartSolvency:
+        """Emite la Solvencia de devolución (crédito) de repuestos devueltos al inventario.
+
+        ``items`` son pares ``(spare_part_id, cantidad_devuelta)``. El código,
+        nombre y costo se copian del catálogo al emitir, igual que en la solvencia
+        de asignación.
+        """
+        machine_code: str | None = None
+        try:
+            machine = await self._machine_repo.get_by_id(machine_id)
+            machine_code = machine.code
+        except Exception:
+            machine_code = None
+
+        solvency = SparePartSolvency(
+            code=await self.generate_code(prefix_code="DEV"),
+            solvency_type=SolvencyType.DEVOLUCION,
             maintenance_order_id=maintenance_order_id,
             machine_id=machine_id,
             machine_code=machine_code,

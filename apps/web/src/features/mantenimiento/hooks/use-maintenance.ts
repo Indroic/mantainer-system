@@ -148,7 +148,9 @@ export function useReturnSparePart(orderId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-orders", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-orders"] });
       queryClient.invalidateQueries({ queryKey: ["spare-parts"] });
+      queryClient.invalidateQueries({ queryKey: ["solvencies"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.success("Repuesto devuelto al inventario con éxito");
     },

@@ -7,6 +7,11 @@ from src.features.maintenance.application.dtos import (
 )
 from src.features.maintenance.domain.entities import failure_category_label
 from src.features.maintenance.domain.services import MaintenanceDomainService
+from src.features.notifications.domain.entities import (
+    NotificationSeverity,
+    NotificationType,
+)
+from src.features.user.domain.entities import UserRole
 
 
 class ReturnSparePartUseCase(
@@ -19,6 +24,10 @@ class ReturnSparePartUseCase(
     async def execute(self, command: ReturnSparePartCommand) -> MaintenanceResponse:
         from src.features.audit.domain.entities import AuditLog
         from src.features.audit.infrastructure.repositories import AuditLogRepository
+        from src.features.notifications.infrastructure.routes import (
+            build_notification_service,
+        )
+        from src.features.solvency.infrastructure.routes import build_solvency_service
 
         async with self.uow:
             order = await self.service.return_spare_part(
@@ -27,6 +36,34 @@ class ReturnSparePartUseCase(
                 quantity=command.quantity,
             )
 
+            # --- 1. Solvencia de devolución con folio ``DEV-AAAA-NNNN`` --------
+            solvency_service = build_solvency_service(self.uow)
+            solvency = await solvency_service.issue_for_return(
+                maintenance_order_id=order.id,
+                machine_id=order.machine_id,
+                issued_by=command.performed_by or "system",
+                items=[(command.spare_part_id, command.quantity)],
+                notes=f"Devolución de repuestos a la OT: {order.description}",
+            )
+
+            # --- 2. Notificación ----------------------------------------------
+            notifications = build_notification_service(self.uow)
+            await notifications.notify_roles(
+                [UserRole.PLANIFICADOR, UserRole.SUPERVISOR, UserRole.ALMACEN],
+                type=NotificationType.SOLVENCIA_EMITIDA,
+                title=f"Devolución de repuestos · {solvency.code}",
+                message=(
+                    f"Se devolvieron {command.quantity} unidad(es) al inventario "
+                    f"desde la OT de la maquinaria "
+                    f"{solvency.machine_code or order.machine_id}. "
+                    f"Documento {solvency.code} emitido."
+                ),
+                severity=NotificationSeverity.INFO,
+                link=f"/mantenimiento/{order.id}",
+                related_entity_id=solvency.id,
+            )
+
+            # --- 3. Auditoría forense -----------------------------------------
             audit_repo = AuditLogRepository(self.uow)
             await audit_repo.save(
                 AuditLog(
@@ -37,6 +74,8 @@ class ReturnSparePartUseCase(
                         "maintenance_order_id": str(command.order_id),
                         "spare_part_id": str(command.spare_part_id),
                         "quantity_returned": command.quantity,
+                        "solvency_code": solvency.code,
+                        "solvency_id": str(solvency.id),
                     },
                     performed_by=command.performed_by or "system",
                 )

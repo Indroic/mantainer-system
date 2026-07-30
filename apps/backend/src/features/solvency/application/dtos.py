@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from hexcore.application.dtos.base import DTO
-from src.features.solvency.domain.entities import SolvencyStatus
+from src.features.solvency.domain.entities import SolvencyStatus, SolvencyType
 
 
 class SolvencyItemResponse(DTO):
@@ -18,6 +18,7 @@ class SolvencyItemResponse(DTO):
 class SolvencyResponse(DTO):
     id: UUID
     code: str
+    solvency_type: SolvencyType = SolvencyType.ASIGNACION
     maintenance_order_id: UUID
     machine_id: UUID
     machine_code: str | None = None

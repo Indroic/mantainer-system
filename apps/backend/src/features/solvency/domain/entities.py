@@ -15,6 +15,11 @@ class SolvencyStatus(str, Enum):
     ANULADA = "ANULADA"
 
 
+class SolvencyType(str, Enum):
+    ASIGNACION = "ASIGNACION"
+    DEVOLUCION = "DEVOLUCION"
+
+
 class SolvencyItem(BaseEntity):
     """Línea de detalle del documento.
 
@@ -43,6 +48,7 @@ class SparePartSolvency(BaseEntity):
     """
 
     code: str
+    solvency_type: SolvencyType = SolvencyType.ASIGNACION
     maintenance_order_id: UUID
     machine_id: UUID
     machine_code: str | None = None

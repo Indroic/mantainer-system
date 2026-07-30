@@ -79,14 +79,18 @@ class SolvencyRepository(
     # ------------------------------------------------------------------
     # Numeración interna secuencial
     # ------------------------------------------------------------------
-    async def next_sequence_for_year(self, year: int) -> int:
+    async def next_sequence_for_year(self, year: int, prefix_code: str = "SOLV") -> int:
         """Siguiente número de folio dentro del año indicado.
 
         Se calcula a partir del máximo folio ya emitido con el prefijo del año
         (no a partir del total de filas) para que una anulación o un borrado no
         provoque la reutilización de un folio.
+
+        ``prefix_code`` permite diferenciar la numeración según el tipo de
+        documento: ``"SOLV"`` para solvencias de asignación, ``"DEV"`` para
+        solvencias de devolución.
         """
-        prefix = f"SOLV-{year}-"
+        prefix = f"{prefix_code}-{year}-"
         stmt = select(func.max(self.model_cls.code)).where(
             self.model_cls.code.like(f"{prefix}%")
         )

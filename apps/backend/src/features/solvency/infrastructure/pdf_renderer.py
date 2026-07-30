@@ -29,11 +29,14 @@ def _status_label(status) -> str:
 
 def render_solvency_pdf(solvency: SolvencyResponse) -> bytes:
     """Genera el comprobante PDF de una Solvencia de Repuestos."""
+    is_return = getattr(solvency, "solvency_type", None) == "DEVOLUCION"
     doc = PdfDocument(
-        title="Solvencia de Repuestos",
+        title="Devolución de Repuestos" if is_return else "Solvencia de Repuestos",
         subtitle=(
-            "Comprobante de autorización y despacho de piezas de recambio "
-            "asociado a una Orden de Trabajo."
+            "Comprobante de devolución de piezas al inventario"
+            if is_return
+            else "Comprobante de autorización y despacho de piezas de recambio "
+                 "asociado a una Orden de Trabajo."
         ),
         document_code=solvency.code,
     )
@@ -105,4 +108,6 @@ def render_solvency_pdf(solvency: SolvencyResponse) -> bytes:
 
 def solvency_pdf_filename(solvency: SolvencyResponse) -> str:
     """Nombre de archivo sugerido para la descarga."""
-    return f"solvencia_{solvency.code}.pdf"
+    is_return = getattr(solvency, "solvency_type", None) == "DEVOLUCION"
+    prefix = "devolucion" if is_return else "solvencia"
+    return f"{prefix}_{solvency.code}.pdf"

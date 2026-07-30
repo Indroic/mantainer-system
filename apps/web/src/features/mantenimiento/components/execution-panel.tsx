@@ -528,6 +528,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     <TableHead className="font-semibold text-muted-foreground">Descripción</TableHead>
                     <TableHead className="font-semibold text-muted-foreground text-right">Cantidad</TableHead>
                     <TableHead className="font-semibold text-muted-foreground text-right">Devuelto</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-right">Cons. Neto</TableHead>
                     {canSeeFinancials && (
                       <>
                         <TableHead className="font-semibold text-muted-foreground text-right">Costo Unit. Hist.</TableHead>
@@ -542,7 +543,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                 <TableBody>
                   {assignedParts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canSeeFinancials ? (canAssignSpareParts && order.status !== "LIQUIDADO" ? 8 : 7) : (canAssignSpareParts && order.status !== "LIQUIDADO" ? 5 : 4)} className="text-center py-8 text-muted-foreground font-medium">
+                      <TableCell colSpan={canSeeFinancials ? (canAssignSpareParts && order.status !== "LIQUIDADO" ? 8 : 7) : (canAssignSpareParts && order.status !== "LIQUIDADO" ? 6 : 5)} className="text-center py-8 text-muted-foreground font-medium">
                         No se han asignado repuestos a esta orden de trabajo.
                       </TableCell>
                     </TableRow>
@@ -567,6 +568,13 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                           <TableCell className="text-right font-mono text-foreground/80">
                             {itemReturned > 0 ? (
                               <span className="text-emerald-400">{itemReturned}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-foreground/80">
+                            {itemQuantity - itemReturned > 0 ? (
+                              <span className="text-indigo-300">{itemQuantity - itemReturned}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
@@ -663,49 +671,61 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                 Solvencias de Repuestos
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Documentos emitidos al asignar repuestos, con numeración interna
-                secuencial. Almacén los usa para despachar las piezas.
+                Documentos emitidos al asignar y devolver repuestos, con
+                numeración interna secuencial.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
               {solvencies.map((solvency) => {
                 const dispatched = solvency.status === "DESPACHADO";
+                const isReturn = solvency.solvency_type === "DEVOLUCION";
                 return (
                   <div
                     key={solvency.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-background/80"
+                    className={cn(
+                      "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border",
+                      isReturn
+                        ? "border-amber-500/20 bg-amber-500/5"
+                        : "border-border bg-background/80",
+                    )}
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-sm font-bold text-indigo-400">
+                        <span className={cn(
+                          "font-mono text-sm font-bold",
+                          isReturn ? "text-amber-400" : "text-indigo-400",
+                        )}>
                           {solvency.code}
                         </span>
                         <Badge
                           className={cn(
                             "px-2 py-0.5 rounded-lg border text-[9px] font-bold uppercase",
-                            dispatched
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                            isReturn
+                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                              : dispatched
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-400 border-amber-500/20",
                           )}
                         >
-                          {dispatched ? "Despachado" : "Pendiente de despacho"}
+                          {isReturn ? "Devolución" : dispatched ? "Despachado" : "Pendiente de despacho"}
                         </Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {solvency.total_units} unidad(es) ·{" "}
                         {solvency.items?.length ?? 0} línea(s)
-                        {canSeeFinancials
+                        {canSeeFinancials && !isReturn
                           ? ` · ${formatCurrency(solvency.total_cost)}`
                           : ""}
                       </p>
                       <p className="text-[10px] text-muted-foreground/80">
-                        Emitida por {solvency.issued_by_name || solvency.issued_by} el{" "}
+                        {isReturn ? "Devuelta por" : "Emitida por"}{" "}
+                        {solvency.issued_by_name || solvency.issued_by} el{" "}
                         {new Date(solvency.created_at).toLocaleDateString()}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {canDispatchSolvencies && !dispatched && (
+                      {canDispatchSolvencies && !dispatched && !isReturn && (
                         <Button
                           type="button"
                           variant="outline"

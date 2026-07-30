@@ -41,6 +41,7 @@ async def to_solvency_response(
     return SolvencyResponse(
         id=solvency.id,
         code=solvency.code,
+        solvency_type=solvency.solvency_type,
         maintenance_order_id=solvency.maintenance_order_id,
         machine_id=solvency.machine_id,
         machine_code=solvency.machine_code,
