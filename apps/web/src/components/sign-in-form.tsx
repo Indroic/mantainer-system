@@ -9,6 +9,18 @@ import { authClient } from "@/lib/auth-client";
 import Loader from "./loader";
 
 /**
+ * Los validadores de standard-schema (zod) devuelven objetos `{ message, path }`,
+ * no cadenas: hacer `String(error)` sobre ellos imprime "[object Object]".
+ */
+function errorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "");
+  }
+  return String(error);
+}
+
+/**
  * Formulario de inicio de sesión.
  *
  * spec 6.1: la credencial principal es el NOMBRE DE USUARIO (p. ej. "jmorales1"),
@@ -112,9 +124,12 @@ export default function SignInForm({
                 onBlur={field.handleBlur}
                 className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-400"
               />
-              {field.state.meta.errors.map((error) => (
-                <FieldError key={String(error)} className="text-xs font-medium text-rose-400">
-                  {String(error)}
+              {field.state.meta.errors.map((error, index) => (
+                <FieldError
+                  key={`${field.name}-error-${index}`}
+                  className="text-xs font-medium text-rose-400"
+                >
+                  {errorMessage(error)}
                 </FieldError>
               ))}
             </TextField>
@@ -144,9 +159,12 @@ export default function SignInForm({
                 onBlur={field.handleBlur}
                 className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-400"
               />
-              {field.state.meta.errors.map((error) => (
-                <FieldError key={String(error)} className="text-xs font-medium text-rose-400">
-                  {String(error)}
+              {field.state.meta.errors.map((error, index) => (
+                <FieldError
+                  key={`${field.name}-error-${index}`}
+                  className="text-xs font-medium text-rose-400"
+                >
+                  {errorMessage(error)}
                 </FieldError>
               ))}
             </TextField>

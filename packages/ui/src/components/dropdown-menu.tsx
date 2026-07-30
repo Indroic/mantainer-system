@@ -1,54 +1,57 @@
 "use client"
 
 import * as React from "react"
-import { Dropdown } from "@heroui/react"
+import { Dropdown, Header, Separator } from "@heroui/react"
 import { ChevronRightIcon } from "lucide-react"
+import { cn } from "@mantainer-system/ui/lib/utils"
 
-const DropdownContext = React.createContext<{
-  isOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
-} | null>(null);
+/**
+ * Adaptador con la API de shadcn/Radix sobre el `Dropdown` de HeroUI v3.
+ *
+ * IMPORTANTE: `Dropdown.Menu` es una *colección* de react-aria. Sus hijos se
+ * renderizan primero contra un documento simulado que solo entiende componentes
+ * de colección (`Item`, `Section`, `Header`, `Separator`). Si se cuela un `<div>`,
+ * un `<span>` o texto suelto, react-dom intenta crear nodos reales dentro de ese
+ * documento falso y revienta con "createTextNode is not a function".
+ *
+ * Por eso cada pieza de este archivo mapea a un componente de colección real y
+ * NUNCA a un elemento DOM plano.
+ */
 
-function DropdownMenu({ open, onOpenChange, defaultOpen, children }: any) {
-  const [internalOpen, setInternalOpen] = React.useState(defaultOpen ?? false);
-  const isOpen = open !== undefined ? open : internalOpen;
-  
-  const handleOpenChange = React.useCallback((val: boolean) => {
-    if (onOpenChange) {
-      onOpenChange(val);
-    } else {
-      setInternalOpen(val);
-    }
-  }, [onOpenChange]);
-
-  const value = React.useMemo(() => ({
-    isOpen,
-    onOpenChange: handleOpenChange
-  }), [isOpen, handleOpenChange]);
-
+function DropdownMenu({ open, onOpenChange, defaultOpen, children, ...props }: any) {
   return (
-    <DropdownContext.Provider value={value}>
-      <Dropdown isOpen={isOpen} onOpenChange={handleOpenChange}>{children}</Dropdown>
-    </DropdownContext.Provider>
+    <Dropdown
+      isOpen={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
+      {...props}
+    >
+      {children}
+    </Dropdown>
   );
 }
 
-function DropdownMenuTrigger({ children, asChild, ...props }: any) {
-  const context = React.useContext(DropdownContext);
-  
+/**
+ * `Dropdown.Trigger` ya es un `Button` de react-aria: es quien ancla el popover
+ * y abre el menú. Con `asChild` no podemos anidar el `<button>` del consumidor
+ * dentro de otro `<button>`, así que absorbemos su `className` y su contenido.
+ */
+function DropdownMenuTrigger({ children, asChild, className, ...props }: any) {
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as any, {
-      onClick: (e: any) => {
-        (children.props as any).onClick?.(e);
-        context?.onOpenChange?.(true);
-      }
-    });
+    const child = children as React.ReactElement<any>;
+    const { className: childClassName, children: childChildren, ...childProps } = child.props;
+
+    return (
+      <Dropdown.Trigger className={cn(childClassName, className)} {...childProps} {...props}>
+        {childChildren}
+      </Dropdown.Trigger>
+    );
   }
 
   return (
-    <button type="button" onClick={() => context?.onOpenChange?.(true)} {...props}>
+    <Dropdown.Trigger className={className} {...props}>
       {children}
-    </button>
+    </Dropdown.Trigger>
   );
 }
 
@@ -56,44 +59,51 @@ function DropdownMenuPortal({ children }: any) {
   return <>{children}</>;
 }
 
-function DropdownMenuContent({ children, ...props }: any) {
+function DropdownMenuContent({ children, className, ...props }: any) {
   return (
-    <Dropdown.Popover {...props}>
-      <Dropdown.Menu className="outline-none">
-        {children}
-      </Dropdown.Menu>
+    <Dropdown.Popover className={className} {...props}>
+      <Dropdown.Menu className="outline-none">{children}</Dropdown.Menu>
     </Dropdown.Popover>
   );
 }
 
 function DropdownMenuGroup({ children, ...props }: any) {
-  return <div {...props}>{children}</div>;
+  return <Dropdown.Section {...props}>{children}</Dropdown.Section>;
 }
 
 function DropdownMenuLabel({ className, ...props }: any) {
-  return <div className="px-2 py-1.5 text-xs text-muted font-semibold" {...props} />;
+  return <Header className={cn("px-2 py-1.5 text-xs font-semibold text-muted", className)} {...props} />;
+}
+
+/**
+ * Los `id` de una colección deben ser estables entre renders: con
+ * `Math.random()` react-aria reconstruía la colección en cada render y perdía
+ * foco/selección.
+ */
+function useItemId(explicitId?: string) {
+  const generatedId = React.useId();
+  return explicitId ?? generatedId;
 }
 
 function DropdownMenuItem({
   variant = "default",
-  asChild,
+  asChild: _asChild,
   onClick,
+  onSelect,
   children,
+  id,
   ...props
 }: any) {
-  const handlePress = (e: any) => {
-    if (onClick) {
-      onClick(e);
-    }
-  };
-
-  const id = props.id || props.value || (typeof children === "string" ? children : Math.random().toString());
+  const itemId = useItemId(id);
 
   return (
     <Dropdown.Item
-      id={id}
+      id={itemId}
       variant={variant === "destructive" ? "danger" : "default"}
-      onPress={handlePress}
+      onAction={() => {
+        onClick?.();
+        onSelect?.();
+      }}
       {...props}
     >
       {children}
@@ -105,15 +115,11 @@ function DropdownMenuSub({ children, ...props }: any) {
   return <Dropdown.SubmenuTrigger {...props}>{children}</Dropdown.SubmenuTrigger>;
 }
 
-function DropdownMenuSubTrigger({
-  children,
-  ...props
-}: any) {
+function DropdownMenuSubTrigger({ children, id, ...props }: any) {
+  const itemId = useItemId(id);
+
   return (
-    <Dropdown.Item
-      id={props.id || Math.random().toString()}
-      {...props}
-    >
+    <Dropdown.Item id={itemId} {...props}>
       {children}
       <Dropdown.SubmenuIndicator className="ml-auto">
         <ChevronRightIcon className="size-3.5 text-muted" />
@@ -122,26 +128,19 @@ function DropdownMenuSubTrigger({
   );
 }
 
-function DropdownMenuSubContent({ children, ...props }: any) {
+function DropdownMenuSubContent({ children, className, ...props }: any) {
   return (
-    <Dropdown.Popover {...props}>
-      <Dropdown.Menu className="outline-none">
-        {children}
-      </Dropdown.Menu>
+    <Dropdown.Popover className={className} {...props}>
+      <Dropdown.Menu className="outline-none">{children}</Dropdown.Menu>
     </Dropdown.Popover>
   );
 }
 
-function DropdownMenuCheckboxItem({
-  children,
-  checked,
-  ...props
-}: any) {
+function DropdownMenuCheckboxItem({ children, checked, id, ...props }: any) {
+  const itemId = useItemId(id);
+
   return (
-    <Dropdown.Item
-      id={props.id || Math.random().toString()}
-      {...props}
-    >
+    <Dropdown.Item id={itemId} {...props}>
       {children}
       {checked && <Dropdown.ItemIndicator className="ml-auto" />}
     </Dropdown.Item>
@@ -149,19 +148,14 @@ function DropdownMenuCheckboxItem({
 }
 
 function DropdownMenuRadioGroup({ children, ...props }: any) {
-  return <div {...props}>{children}</div>;
+  return <Dropdown.Section {...props}>{children}</Dropdown.Section>;
 }
 
-function DropdownMenuRadioItem({
-  children,
-  checked,
-  ...props
-}: any) {
+function DropdownMenuRadioItem({ children, checked, id, ...props }: any) {
+  const itemId = useItemId(id);
+
   return (
-    <Dropdown.Item
-      id={props.id || Math.random().toString()}
-      {...props}
-    >
+    <Dropdown.Item id={itemId} {...props}>
       {children}
       {checked && <Dropdown.ItemIndicator className="ml-auto" />}
     </Dropdown.Item>
@@ -169,11 +163,11 @@ function DropdownMenuRadioItem({
 }
 
 function DropdownMenuSeparator({ className, ...props }: any) {
-  return <div className="h-px bg-border -mx-1 my-1" {...props} />;
+  return <Separator className={cn("-mx-1 my-1", className)} {...props} />;
 }
 
 function DropdownMenuShortcut({ className, ...props }: any) {
-  return <span className="ml-auto text-xs tracking-widest text-muted" {...props} />;
+  return <span className={cn("ml-auto text-xs tracking-widest text-muted", className)} {...props} />;
 }
 
 export {

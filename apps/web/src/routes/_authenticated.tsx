@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuGroup,
 } from "@mantainer-system/ui/components/dropdown-menu";
 import {
   WrenchIcon,
@@ -247,27 +246,28 @@ function AuthenticatedLayout() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-overlay border border-border text-foreground p-2 rounded-2xl shadow-xl">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="px-3 py-2">
-                    <span className="block text-xs font-bold text-foreground truncate">
-                      {user?.name || "Mi Perfil"}
+                {/* Los hijos de un menú de HeroUI son una colección de react-aria:
+                    solo admiten Label/Separator/Item, nunca <div> ni texto suelto. */}
+                <DropdownMenuLabel className="px-3 py-2">
+                  <span className="block text-xs font-bold text-foreground truncate">
+                    {user?.name || "Mi Perfil"}
+                  </span>
+                  <span className="block text-[10px] font-semibold text-accent">
+                    {roleLabel ?? "Mecánico"}
+                  </span>
+                  {username && (
+                    <span className="block font-mono text-[10px] text-muted truncate">
+                      @{username}
                     </span>
-                    <span className="block text-[10px] font-semibold text-accent">
-                      {roleLabel ?? "Mecánico"}
-                    </span>
-                    {username && (
-                      <span className="block font-mono text-[10px] text-muted truncate">
-                        @{username}
-                      </span>
-                    )}
-                  </DropdownMenuLabel>
-                </DropdownMenuGroup>
+                  )}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem asChild>
-                  <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-default transition-colors">
-                    <UserIcon className="size-4 text-accent" />
-                    Mi Dashboard
-                  </Link>
+                <DropdownMenuItem
+                  onClick={() => navigate({ to: "/dashboard" })}
+                  className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-default transition-colors"
+                >
+                  <UserIcon className="size-4 text-accent" />
+                  Mi Dashboard
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-danger hover:bg-danger/10 transition-colors">
