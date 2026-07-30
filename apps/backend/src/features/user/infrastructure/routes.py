@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.dependencies import (
+    ALL_ROLES,
+    CAN_CREATE_ORDERS,
+    PLANNER_ONLY,
     CurrentUser,
     _parse_role,
     get_current_user,
@@ -48,7 +51,7 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)) -> dict:
 async def create_or_update_metadata(
     command: CreateOrUpdateUserMetadataCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: CurrentUser = Depends(require_roles([UserRole.ADMINISTRADOR])),
+    current_user: CurrentUser = Depends(require_roles(PLANNER_ONLY)),
 ) -> UserMetadataResponse:
     """Registra o actualiza metadata local de un usuario (p. ej. tarifa horaria).
 
@@ -65,7 +68,7 @@ async def create_or_update_metadata(
     "/mechanics",
     response_model=list[MechanicResponse],
     dependencies=[
-        Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR]))
+        Depends(require_roles(CAN_CREATE_ORDERS))
     ],
 )
 async def list_mechanics(
@@ -121,7 +124,7 @@ async def list_mechanics(
     "/{better_auth_user_id}",
     response_model=UserMetadataResponse,
     dependencies=[
-        Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR]))
+        Depends(require_roles(CAN_CREATE_ORDERS))
     ],
 )
 async def get_user_metadata_by_id(

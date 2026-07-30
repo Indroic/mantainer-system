@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import require_roles
+from src.features.auth.dependencies import (
+    CAN_EXECUTE_ORDERS,
+    CAN_MANAGE_MACHINES,
+    PLANNER_ONLY,
+    require_roles,
+)
 from src.features.user.application.dtos import UserMetadataResponse
 from src.features.machine.application.dtos import (
     ChangeMachineStatusCommand,
@@ -41,7 +46,7 @@ router = APIRouter(prefix="/machines", tags=["Machines"])
 async def create_machine(
     command: CreateMachineCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_MANAGE_MACHINES)),
 ) -> MachineResponse:
     """Registra una nueva máquina activa en el sistema.
 
@@ -62,9 +67,7 @@ async def update_horometer(
     command: UpdateMachineHorometerCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> MachineResponse:
     """Actualiza e incrementa el horómetro de una máquina.
@@ -85,7 +88,7 @@ async def update_horometer(
 async def change_status(
     command: ChangeMachineStatusCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_MANAGE_MACHINES)),
 ) -> MachineResponse:
     """Modifica el estado operativo de una máquina (ej. DADA_DE_BAJA).
 
@@ -105,7 +108,7 @@ async def change_status(
 async def soft_delete_machine(
     machine_id: str,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_MANAGE_MACHINES)),
 ) -> MachineResponse:
     """Realiza la baja lógica (Soft Delete) de una máquina.
 
@@ -129,9 +132,7 @@ async def soft_delete_machine(
     response_model=QueryResponseDTO,
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_EXECUTE_ORDERS)
         )
     ],
 )
@@ -149,6 +150,188 @@ async def query_machines(
     return await use_case.execute(query)
 
 
+# ===========================================================================
+# Importación / exportación del catálogo de maquinaria (spec 4.4)
+#
+# IMPORTANTE: estas rutas se declaran ANTES de `GET /{machine_id}`; si se
+# declararan después, FastAPI resolvería `/machines/export` como si `export`
+# fuese un ID de máquina.
+# ===========================================================================
+async def _load_all_machines(uow: SqlAlchemyUnitOfWork) -> list:
+    """Catálogo completo de maquinaria activa, ordenado por código."""
+    query_dto = QueryRequestDTO(limit=10000, offset=0, filters=[])
+    result = await QueryMachinesUseCase(MachineRepository(uow)).execute(query_dto)
+    return sorted(result.items, key=lambda m: (m.code or ""))
+
+
+@router.get(
+    "/export",
+    dependencies=[Depends(require_roles(CAN_MANAGE_MACHINES))],
+)
+async def export_machines(
+    format: str = "xlsx",
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> Response:
+    """Exporta el catálogo completo de maquinaria en Excel, CSV o PDF.
+
+    El archivo Excel usa exactamente las mismas columnas que la plantilla de
+    importación, por lo que puede editarse y volver a subirse.
+    """
+    from src.features.machine.infrastructure.importers import (
+        MACHINE_COLUMNS,
+        _machine_row,
+        render_machines_pdf,
+        render_machines_xlsx,
+    )
+
+    machines = await _load_all_machines(uow)
+    normalized = (format or "xlsx").strip().lower()
+
+    if normalized == "pdf":
+        return Response(
+            content=render_machines_pdf(machines),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="maquinaria_sgmm.pdf"'
+            },
+        )
+
+    if normalized == "csv":
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([c.header for c in MACHINE_COLUMNS])
+        for machine in machines:
+            writer.writerow(["" if v is None else v for v in _machine_row(machine)])
+        # BOM para que Excel abra el CSV con los acentos correctos.
+        return Response(
+            content="﻿" + output.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": 'attachment; filename="maquinaria_sgmm.csv"'
+            },
+        )
+
+    if normalized not in ("xlsx", "excel"):
+        raise ValueError("Formato inválido. Use 'xlsx', 'csv' o 'pdf'.")
+
+    return Response(
+        content=render_machines_xlsx(machines),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": 'attachment; filename="maquinaria_sgmm.xlsx"'
+        },
+    )
+
+
+@router.get(
+    "/import-template",
+    dependencies=[Depends(require_roles(CAN_MANAGE_MACHINES))],
+)
+async def download_machines_template() -> Response:
+    """Descarga la plantilla Excel de importación con ejemplos e instrucciones."""
+    from src.features.machine.infrastructure.importers import (
+        render_machines_template_xlsx,
+    )
+
+    return Response(
+        content=render_machines_template_xlsx(),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="plantilla_maquinaria_sgmm.xlsx"'
+            )
+        },
+    )
+
+
+@router.post("/import", status_code=status.HTTP_200_OK)
+async def import_machines(
+    file: UploadFile = File(...),
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
+) -> dict:
+    """Importa maquinaria desde la plantilla Excel o un CSV equivalente.
+
+    EXCLUSIVO del Planificador (spec 4.4). Las filas cuyo 'Código' ya existe se
+    actualizan; el resto se crean. Los errores se devuelven fila por fila sin
+    abortar la importación completa, de modo que un archivo con una fila mala no
+    impide cargar las demás.
+    """
+    from src.features.machine.infrastructure.importers import (
+        ImportRowError,
+        MachineImportResult,
+        parse_machine_row,
+    )
+    from src.shared.infrastructure.reporting.excel import read_tabular_upload
+
+    content = await file.read()
+    try:
+        rows = read_tabular_upload(content, file.filename or "")
+    except Exception as exc:
+        raise ValueError(
+            f"No se pudo leer el archivo. Use la plantilla Excel o un CSV válido. ({exc})"
+        ) from exc
+
+    result = MachineImportResult(errors=[])
+    repo = MachineRepository(uow)
+    service = MachineDomainService(repo)
+
+    for index, row in enumerate(rows, start=2):  # fila 1 = encabezados
+        try:
+            data = parse_machine_row(row)
+        except ValueError as exc:
+            result.errors.append(ImportRowError(index, str(exc)))
+            result.skipped += 1
+            continue
+
+        try:
+            existing = await repo.get_by_code(data["code"])
+            async with uow:
+                if existing is not None:
+                    # Actualización in-place: no reescribimos el horómetro hacia
+                    # atrás, porque el dominio lo prohíbe (es incremental).
+                    existing.brand = data["brand"]
+                    existing.model = data["model"]
+                    existing.manufacture_year = data["manufacture_year"]
+                    existing.motor_serial = data["motor_serial"]
+                    existing.horometer_unit = data["horometer_unit"]
+                    existing.description = data["description"]
+                    existing.location = data["location"]
+                    if data["current_horometer"] > (existing.current_horometer or 0.0):
+                        existing.current_horometer = data["current_horometer"]
+                    await repo.save(existing)
+                    result.updated += 1
+                else:
+                    created = await service.create_machine(
+                        code=data["code"],
+                        motor_serial=data["motor_serial"],
+                        brand=data["brand"],
+                        model=data["model"],
+                        manufacture_year=data["manufacture_year"],
+                        current_horometer=data["current_horometer"],
+                        horometer_unit=data["horometer_unit"],
+                        description=data["description"],
+                        location=data["location"],
+                    )
+                    if data["status"] != created.status:
+                        created.change_status(data["status"])
+                        await repo.save(created)
+                    result.created += 1
+                await uow.commit()
+        except Exception as exc:
+            result.errors.append(ImportRowError(index, str(exc)))
+            result.skipped += 1
+
+    return result.as_dict()
+
+
 @router.get(
     "/",
     response_model=list[MachineResponse],
@@ -158,7 +341,7 @@ async def get_machines(
     search: str | None = None,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     current_user: UserMetadataResponse = Depends(
-        require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO])
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> list[MachineResponse]:
     """Obtiene la lista de todas las máquinas, opcionalmente filtradas por estado o término de búsqueda.
@@ -172,7 +355,7 @@ async def get_machines(
         filters.append(FilterConditionDTO(field="status", operator=FilterOperator.EQ, value=status))
 
     # Filtro RBAC: solo admins pueden ver máquinas dadas de baja (is_active=False)
-    if current_user.role != UserRole.ADMINISTRADOR:
+    if current_user.role != UserRole.PLANIFICADOR:
         filters.append(FilterConditionDTO(field="is_active", operator=FilterOperator.EQ, value=True))
 
     query_dto = QueryRequestDTO(
@@ -212,9 +395,7 @@ async def get_machines(
     response_model=MachineResponse,
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_EXECUTE_ORDERS)
         )
     ],
 )
@@ -254,9 +435,7 @@ async def update_horometer_path(
     payload: dict,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> MachineResponse:
     """Actualiza e incrementa el horómetro de una máquina utilizando parámetros en la URL."""
@@ -285,7 +464,7 @@ async def change_status_path(
     machine_id: str,
     payload: dict,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_MANAGE_MACHINES)),
 ) -> MachineResponse:
     """Modifica el estado operativo de una máquina utilizando parámetros en la URL."""
     from uuid import UUID

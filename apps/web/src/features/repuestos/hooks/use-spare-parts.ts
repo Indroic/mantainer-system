@@ -8,7 +8,7 @@ import type {
 } from "../types";
 import { toast } from "sonner";
 
-export function useSpareParts(search?: string) {
+export function useSpareParts(search?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["spare-parts", search],
     queryFn: async () => {
@@ -16,9 +16,14 @@ export function useSpareParts(search?: string) {
       if (search) {
         params.search = search;
       }
-      return await apiClient.get<SparePartResponse[]>("/inventory/", { params });
+      const data = await apiClient.get<SparePartResponse[]>("/inventory/", { params });
+      // Blindamos la forma: los consumidores iteran el resultado directamente.
+      return Array.isArray(data) ? data : [];
     },
     staleTime: 30 * 1000,
+    // El inventario está restringido por rol: se desactiva para quien no puede
+    // consultarlo y así evitamos un 403 innecesario.
+    enabled: options?.enabled ?? true,
   });
 }
 

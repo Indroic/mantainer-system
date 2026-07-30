@@ -20,6 +20,11 @@ dependencies = [
     # para evitar el ImportError al arrancar (alembic/uvicorn cargan hexcore).
     "typer>=0.12,<0.26",
     "python-multipart>=0.0.9",
+    # Generación de documentos: Solvencias de Repuestos y reportes en PDF
+    # (reportlab) y plantillas / exportaciones Excel con auto-ajuste de columnas
+    # y formato de moneda (openpyxl).
+    "reportlab>=4.2.0",
+    "openpyxl>=3.1.5",
 ]
 
 

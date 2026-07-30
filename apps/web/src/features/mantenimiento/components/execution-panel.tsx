@@ -13,11 +13,23 @@ import {
   AlertTriangleIcon,
   GaugeIcon,
   CoinsIcon,
+  ClipboardCheckIcon,
+  DownloadIcon,
+  FileTextIcon,
+  PackageCheckIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useStartOrder, useAddSparePartToOrder, useLiquidateOrder } from "../hooks/use-maintenance";
+import { useDispatchSolvency, useDownloadSolvencyPdf } from "../hooks/use-solvencies";
 import { useSpareParts } from "@/features/repuestos/hooks/use-spare-parts";
-import type { MaintenanceOrderResponse } from "../types";
+import { failureCategoryLabel, type MaintenanceOrderResponse, type SolvencyResponse } from "../types";
+import {
+  formatCurrency,
+  orderSpareParts,
+  orderSparePartsTotal,
+  sparePartQuantity,
+  sparePartUnitCost,
+} from "../utils/order-costs";
 import type { SparePartResponse } from "@/features/repuestos/types";
 import { toast } from "sonner";
 import { cn } from "@mantainer-system/ui/lib/utils";
@@ -28,16 +40,33 @@ interface ExecutionPanelProps {
 }
 
 export default function ExecutionPanel({ order }: ExecutionPanelProps) {
-  const { isAdmin, isSupervisor } = useAuth();
-  const canSeeFinancials = isAdmin || isSupervisor;
+  const {
+    canViewFinancials,
+    canAssignSpareParts,
+    canViewSolvencies,
+    canDispatchSolvencies,
+  } = useAuth();
+  const canSeeFinancials = canViewFinancials;
+
   // Queries y Mutaciones
   const startMutation = useStartOrder(order.id);
   const addSparePartMutation = useAddSparePartToOrder(order.id);
   const liquidateMutation = useLiquidateOrder(order.id);
+  const downloadSolvency = useDownloadSolvencyPdf();
+  const dispatchSolvency = useDispatchSolvency();
+
+  // Las solvencias llegan embebidas en la OT; nunca se itera la respuesta cruda.
+  const solvencies: SolvencyResponse[] = Array.isArray(order.solvencies)
+    ? order.solvencies
+    : [];
 
   // Estados locales
   const [sparePartSearch, setSparePartSearch] = useState("");
-  const { data: spareParts = [] } = useSpareParts(sparePartSearch);
+  const { data: sparePartsData, isLoading: sparePartsLoading, isError: sparePartsError } =
+    useSpareParts(sparePartSearch);
+  // El backend puede devolver `null` (o un error) en lugar de una lista: nunca
+  // iteramos directamente sobre la respuesta cruda.
+  const spareParts: SparePartResponse[] = Array.isArray(sparePartsData) ? sparePartsData : [];
 
   const [selectedPart, setSelectedPart] = useState<SparePartResponse | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
@@ -45,9 +74,16 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
 
   const [horometerInput, setHorometerInput] = useState<number>(order.machine?.current_horometer || 0);
   const [liquidateDialogOpen, setLiquidateDialogOpen] = useState(false);
+  // spec 5.1: descripción detallada del trabajo realizado, obligatoria antes de
+  // liquidar y cerrar la OT. Queda en el historial del activo.
+  const [workPerformed, setWorkPerformed] = useState<string>(order.work_performed ?? "");
+
+  const trimmedWorkPerformed = workPerformed.trim();
+  const isWorkPerformedInvalid = trimmedWorkPerformed.length < 10;
 
   // Validaciones locales
-  const isPartOutOfStock = selectedPart ? quantity > selectedPart.stock_current : false;
+  const selectedPartStock = Number(selectedPart?.stock_current ?? 0);
+  const isPartOutOfStock = selectedPart ? quantity > selectedPartStock : false;
   const isHorometerInvalid = horometerInput < (order.machine?.current_horometer || 0);
 
   const handleStart = async () => {
@@ -56,7 +92,15 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
 
   const handleAddSparePart = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPart) return;
+    if (!selectedPart?.id) {
+      toast.error("Seleccione un repuesto del inventario antes de asignar");
+      return;
+    }
+
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      toast.error("Indique una cantidad válida (mínimo 1 unidad)");
+      return;
+    }
 
     if (isPartOutOfStock) {
       toast.error("La cantidad supera el stock físico disponible");
@@ -86,9 +130,17 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
       return;
     }
 
+    if (isWorkPerformedInvalid) {
+      toast.error(
+        "Describa el trabajo realizado (mínimo 10 caracteres) antes de liquidar la OT",
+      );
+      return;
+    }
+
     await liquidateMutation.mutateAsync(
       {
         current_horometer: horometerInput,
+        work_performed: trimmedWorkPerformed,
       },
       {
         onSuccess: () => {
@@ -98,11 +150,11 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
     );
   };
 
-  // Calcular costo acumulado total de repuestos consumidos en esta orden
-  const totalCost = order.spare_parts.reduce(
-    (acc, item) => acc + item.quantity * item.unit_cost_at_time,
-    0
-  );
+  // Repuestos ya asignados. `unit_cost_at_time` llega en `null` hasta que la OT
+  // se liquida, así que todo el cálculo pasa por los helpers defensivos.
+  const assignedParts = orderSpareParts(order);
+  const totalCost = orderSparePartsTotal(order);
+  const hasEstimatedCosts = assignedParts.some((item) => !sparePartUnitCost(item).isHistorical);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -157,8 +209,39 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     {order.machine?.status}
                   </Badge>
                 </div>
+                {/* Clasificación de la falla (spec 4.1) */}
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">
+                    Clasificación de Falla
+                  </p>
+                  <p className="text-sm font-medium text-foreground/80">
+                    {order.failure_category_label ??
+                      failureCategoryLabel(order.failure_category)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">
+                    Registrada por
+                  </p>
+                  <p className="text-sm font-medium text-foreground/80 truncate">
+                    {order.created_by_name || "—"}
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Trabajo realizado (spec 5.1): visible una vez liquidada la OT. */}
+            {order.work_performed && (
+              <div className="space-y-1.5 bg-background/80 p-4 rounded-xl border border-border">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <ClipboardCheckIcon className="size-3.5 text-emerald-400" />
+                  Trabajo Realizado
+                </h3>
+                <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-line">
+                  {order.work_performed}
+                </p>
+              </div>
+            )}
 
             {/* Controles de Flujo de Trabajo */}
             <div className="pt-4 border-t border-border space-y-3">
@@ -181,7 +264,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                       Liquidar y Cerrar OT
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-card border border-border text-foreground p-6 rounded-2xl max-w-sm">
+                  <DialogContent className="bg-card border border-border text-foreground p-6 rounded-2xl max-w-md">
                     <DialogHeader>
                       <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                         <GaugeIcon className="size-5 text-emerald-400" />
@@ -189,6 +272,30 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                       </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleLiquidate} className="space-y-4 mt-2">
+                      {/* spec 5.1: descripción detallada del trabajo realizado.
+                          Se guarda en el historial técnico del activo. */}
+                      <div className="space-y-1">
+                        <Label htmlFor="workPerformedInput" className="text-foreground/80 text-xs">
+                          Descripción del Trabajo Realizado
+                        </Label>
+                        <textarea
+                          id="workPerformedInput"
+                          rows={4}
+                          value={workPerformed}
+                          onChange={(e) => setWorkPerformed(e.target.value)}
+                          placeholder="Detalle las tareas ejecutadas, piezas sustituidas y observaciones técnicas..."
+                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-accent focus-visible:outline-none"
+                        />
+                        <p className="text-[10px] text-muted-foreground font-medium">
+                          Quedará registrado en la hoja de vida de la máquina.
+                        </p>
+                        {isWorkPerformedInvalid && trimmedWorkPerformed.length > 0 && (
+                          <p className="text-[10px] font-semibold text-amber-400">
+                            Añada algo más de detalle (mínimo 10 caracteres).
+                          </p>
+                        )}
+                      </div>
+
                       <div className="space-y-1">
                         <Label htmlFor="horometerInput" className="text-foreground/80 text-xs">
                           Horómetro de Cierre de Máquina (hrs)
@@ -218,7 +325,11 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                       <div className="flex gap-3 pt-2">
                         <Button
                           type="submit"
-                          disabled={liquidateMutation.isPending || isHorometerInvalid}
+                          disabled={
+                            liquidateMutation.isPending ||
+                            isHorometerInvalid ||
+                            isWorkPerformedInvalid
+                          }
                           className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold"
                         >
                           {liquidateMutation.isPending ? "Liquidando..." : "Confirmar Cierre"}
@@ -264,7 +375,11 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
               </CardDescription>
             </div>
 
-            {order.status === "EN_EJECUCION" && (
+            {/* spec 2.1 / 3.3: SOLO el Planificador asigna repuestos, y puede
+                hacerlo desde que la OT se crea (PROGRAMADO) para que el mecánico
+                arranque con las piezas ya autorizadas. El Supervisor ya no ve
+                este botón. */}
+            {canAssignSpareParts && order.status !== "LIQUIDADO" && (
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="rounded-xl px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-1.5">
@@ -299,7 +414,15 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     <div className="space-y-1">
                       <Label className="text-foreground/80 text-xs">Seleccione el Repuesto</Label>
                       <div className="max-h-36 overflow-y-auto border border-border rounded-xl bg-background/80 p-2 space-y-1">
-                        {spareParts.length === 0 ? (
+                        {sparePartsLoading ? (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            Cargando inventario...
+                          </p>
+                        ) : sparePartsError ? (
+                          <p className="text-xs text-rose-400 text-center py-4">
+                            No se pudo cargar el inventario. Intente nuevamente.
+                          </p>
+                        ) : spareParts.length === 0 ? (
                           <p className="text-xs text-muted-foreground text-center py-4">
                             No se encontraron repuestos.
                           </p>
@@ -340,7 +463,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-muted-foreground">Stock disponible:</span>
                           <span className="font-bold font-mono text-foreground">
-                            {selectedPart.stock_current} unidades
+                            {selectedPartStock} unidades
                           </span>
                         </div>
                         <div className="space-y-1">
@@ -352,7 +475,10 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                             type="number"
                             min="1"
                             value={quantity}
-                            onChange={(e) => setQuantity(Number(e.target.value))}
+                            onChange={(e) => {
+                              const parsed = Number(e.target.value);
+                              setQuantity(Number.isFinite(parsed) ? parsed : 1);
+                            }}
                             className="bg-background/80 border-border rounded-xl"
                           />
                         </div>
@@ -362,7 +488,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                           <div className="p-2.5 rounded-xl bg-rose-950/20 border border-rose-500/20 text-rose-400 text-xs flex gap-2">
                             <AlertTriangleIcon className="size-4 shrink-0 mt-0.5" />
                             <span>
-                              ¡Advertencia! La cantidad solicitada ({quantity}) supera el stock físico actual ({selectedPart.stock_current}).
+                              ¡Advertencia! La cantidad solicitada ({quantity}) supera el stock físico actual ({selectedPartStock}).
                             </span>
                           </div>
                         )}
@@ -408,34 +534,49 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {order.spare_parts.length === 0 ? (
+                  {assignedParts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={canSeeFinancials ? 5 : 3} className="text-center py-8 text-muted-foreground font-medium">
                         No se han asignado repuestos a esta orden de trabajo.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    order.spare_parts.map((item) => (
-                      <TableRow key={item.id} className="border-b border-border/50 hover:bg-surface/20">
-                        <TableCell className="font-mono font-bold text-indigo-400">
-                          {item.spare_part?.code || "REP-REP"}
-                        </TableCell>
-                        <TableCell className="font-medium text-foreground">
-                          {item.spare_part?.name || "Repuesto Histórico"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-foreground/80">{item.quantity}</TableCell>
-                        {canSeeFinancials && (
-                          <>
-                            <TableCell className="text-right font-mono text-foreground/80">
-                              ${item.unit_cost_at_time.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-semibold text-indigo-300">
-                              ${(item.quantity * item.unit_cost_at_time).toFixed(2)}
-                            </TableCell>
-                          </>
-                        )}
-                      </TableRow>
-                    ))
+                    assignedParts.map((item, index) => {
+                      const itemQuantity = sparePartQuantity(item);
+                      const unitCost = sparePartUnitCost(item);
+                      return (
+                        <TableRow
+                          key={item.id ?? `${item.spare_part_id}-${index}`}
+                          className="border-b border-border/50 hover:bg-surface/20"
+                        >
+                          <TableCell className="font-mono font-bold text-indigo-400">
+                            {item.spare_part?.code || "REP-REP"}
+                          </TableCell>
+                          <TableCell className="font-medium text-foreground">
+                            {item.spare_part?.name || "Repuesto Histórico"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-foreground/80">{itemQuantity}</TableCell>
+                          {canSeeFinancials && (
+                            <>
+                              <TableCell className="text-right font-mono text-foreground/80">
+                                {formatCurrency(unitCost.value)}
+                                {!unitCost.isHistorical && (
+                                  <span
+                                    className="ml-1 text-[9px] font-bold uppercase text-amber-400"
+                                    title="Costo estimado del catálogo vigente. Se congela al liquidar la OT."
+                                  >
+                                    est.
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold text-indigo-300">
+                                {formatCurrency(itemQuantity * unitCost.value)}
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -446,15 +587,106 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
               <div className="flex justify-between items-center p-4 bg-background/80 rounded-xl border border-border">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <CoinsIcon className="size-4 text-indigo-400" />
-                  <span className="text-xs font-semibold uppercase tracking-wider">Costo Financiero de Repuestos</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">
+                    Costo Financiero de Repuestos
+                  </span>
+                  {hasEstimatedCosts && (
+                    <span className="text-[10px] font-semibold text-amber-400">
+                      (incluye estimaciones del catálogo)
+                    </span>
+                  )}
                 </div>
                 <span className="font-mono text-lg font-bold text-indigo-400">
-                  ${totalCost.toFixed(2)}
+                  {formatCurrency(totalCost)}
                 </span>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* ===================================================================== */}
+        {/* SOLVENCIAS DE REPUESTOS (spec 3.3): descargables en PDF               */}
+        {/* ===================================================================== */}
+        {canViewSolvencies && solvencies.length > 0 && (
+          <Card className="border-border bg-surface/20 backdrop-blur-md rounded-2xl">
+            <CardHeader className="border-b border-border pb-4 space-y-0.5">
+              <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                <FileTextIcon className="size-5 text-indigo-400" />
+                Solvencias de Repuestos
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Documentos emitidos al asignar repuestos, con numeración interna
+                secuencial. Almacén los usa para despachar las piezas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              {solvencies.map((solvency) => {
+                const dispatched = solvency.status === "DESPACHADO";
+                return (
+                  <div
+                    key={solvency.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-background/80"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-sm font-bold text-indigo-400">
+                          {solvency.code}
+                        </span>
+                        <Badge
+                          className={cn(
+                            "px-2 py-0.5 rounded-lg border text-[9px] font-bold uppercase",
+                            dispatched
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                          )}
+                        >
+                          {dispatched ? "Despachado" : "Pendiente de despacho"}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {solvency.total_units} unidad(es) ·{" "}
+                        {solvency.items?.length ?? 0} línea(s)
+                        {canSeeFinancials
+                          ? ` · ${formatCurrency(solvency.total_cost)}`
+                          : ""}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/80">
+                        Emitida por {solvency.issued_by_name || solvency.issued_by} el{" "}
+                        {new Date(solvency.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {canDispatchSolvencies && !dispatched && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => dispatchSolvency.mutate(solvency.id)}
+                          disabled={dispatchSolvency.isPending}
+                          className="rounded-xl border-border text-xs h-8 gap-1.5"
+                        >
+                          <PackageCheckIcon className="size-3.5" />
+                          Despachar
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          downloadSolvency.mutate({ id: solvency.id, code: solvency.code })
+                        }
+                        disabled={downloadSolvency.isPending}
+                        className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-8 gap-1.5"
+                      >
+                        <DownloadIcon className="size-3.5" />
+                        PDF
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

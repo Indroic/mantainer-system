@@ -6,7 +6,9 @@ from src.features.audit.infrastructure.routes import router as audit_router
 from src.features.inventory.infrastructure.routes import router as inventory_router
 from src.features.machine.infrastructure.routes import router as machines_router
 from src.features.maintenance.infrastructure.routes import router as maintenance_router
+from src.features.notifications.infrastructure.routes import router as notifications_router
 from src.features.reports.infrastructure.routes import router as reports_router
+from src.features.solvency.infrastructure.routes import router as solvency_router
 from src.features.user.infrastructure.routes import router as user_router
 
 app = FastAPI(
@@ -32,6 +34,8 @@ app.include_router(maintenance_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
+app.include_router(notifications_router, prefix="/api")
+app.include_router(solvency_router, prefix="/api")
 
 
 # Manejador global de excepciones de negocio (Domain Exceptions / ValueErrors)
@@ -46,6 +50,9 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         "InvalidMaintenanceOperationException",
         "UserMetadataAlreadyExistsException",
         "UserMetadataNotFoundException",
+        "InvalidSolvencyTransitionException",
+        "NotificationForbiddenException",
+        "InvalidMaintenancePlanException",
         "ValueError",
     ]
 

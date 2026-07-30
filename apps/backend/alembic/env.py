@@ -13,8 +13,16 @@ from src.features.maintenance.infrastructure.models import (
     MaintenanceOrderModel,
     MaintenanceSparePartModel,
 )
-from src.features.alerts.infrastructure.models import AlertModel
+from src.features.alerts.infrastructure.models import (
+    AlertModel,
+    MaintenancePlanModel,
+)
 from src.features.audit.infrastructure.models import AuditLogModel
+from src.features.notifications.infrastructure.models import NotificationModel
+from src.features.solvency.infrastructure.models import (
+    SolvencyItemModel,
+    SparePartSolvencyModel,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

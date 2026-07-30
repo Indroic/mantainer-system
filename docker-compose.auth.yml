@@ -12,10 +12,10 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db
       - BETTER_AUTH_SECRET=generar_clave_secreta_de_minimo_32_caracteres_aqui
       # Topología SINGLE-ORIGIN: el navegador alcanza el auth vía el proxy inverso
-      # de la web en https://sgmm.indroic.dev/api/auth/*. Este servicio NO necesita
+      # de la web en http://localhost:80/api/auth/*. Este servicio NO necesita
       # un dominio público propio en Dokploy; basta con estar en dokploy-network
       # para que el contenedor `web` lo resuelva por nombre (auth-server:3000).
-      - BETTER_AUTH_URL=https://sgmm.indroic.dev
+      - BETTER_AUTH_URL=http://localhost:80
     networks:
       - dokploy-network
     restart: always

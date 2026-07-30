@@ -27,10 +27,27 @@ const userSchema = z.object({
     .string()
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .regex(NAME_PATTERN, "El nombre solo puede contener letras, espacios, apóstrofes y guiones"),
+  // spec 6.1: el acceso se hace por nombre de usuario; el correo sigue siendo
+  // obligatorio, pero solo para notificaciones y recuperación de contraseña.
+  username: z
+    .string()
+    .min(3, "El nombre de usuario debe tener al menos 3 caracteres")
+    .max(30, "El nombre de usuario no puede exceder 30 caracteres")
+    .regex(/^[a-zA-Z0-9_.]+$/, "Solo se permiten letras, números, punto y guion bajo"),
   email: z.string().email("Correo electrónico inválido"),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  role: z.enum(["admin", "supervisor", "mechanic"]),
+  role: z.enum(["planner", "supervisor", "mechanic", "warehouse"]),
 });
+
+/** Roles asignables desde la gestión de usuarios, con su etiqueta en la UI. */
+const ASSIGNABLE_ROLES: { value: ManagedRole; label: string; hint: string }[] = [
+  { value: "mechanic", label: "Mecánico", hint: "Ejecuta OT y registra averías" },
+  { value: "supervisor", label: "Supervisor", hint: "Supervisa el taller y crea OT" },
+  { value: "warehouse", label: "Almacén", hint: "Consulta stock y despacha repuestos" },
+  { value: "planner", label: "Planificador", hint: "Control total del sistema" },
+];
+
+type ManagedRole = "planner" | "supervisor" | "mechanic" | "warehouse";
 
 const getErrorMessage = (err: any): string => {
   if (!err) return "";
@@ -43,7 +60,7 @@ const getErrorMessage = (err: any): string => {
 };
 
 function UsuariosComponent() {
-  const { isAdmin, user } = useAuth();
+  const { canManageUsers, user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEditUser, setSelectedEditUser] = useState<any>(null);
@@ -73,7 +90,12 @@ function UsuariosComponent() {
         password: values.password,
         name: values.name,
         role: values.role as any,
-      });
+        // `username` es un campo del plugin username: va en `data`, no en la raíz.
+        data: {
+          username: values.username.trim().toLowerCase(),
+          displayUsername: values.username.trim(),
+        },
+      } as never);
 
       if (res.error) {
         throw new Error(res.error.message || "Error al crear usuario");
@@ -90,7 +112,7 @@ function UsuariosComponent() {
   });
 
   const changeRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: "admin" | "supervisor" | "mechanic" }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: ManagedRole }) => {
       const res = await authClient.admin.setRole({
         userId,
         role: role as any,
@@ -172,9 +194,10 @@ function UsuariosComponent() {
   const form = useForm({
     defaultValues: {
       name: "",
+      username: "",
       email: "",
       password: "",
-      role: "mechanic" as "admin" | "supervisor" | "mechanic",
+      role: "mechanic" as ManagedRole,
     },
     onSubmit: async ({ value }) => {
       await createUserMutation.mutateAsync(value, {
@@ -189,13 +212,13 @@ function UsuariosComponent() {
     },
   });
 
-  if (!isAdmin) {
+  if (!canManageUsers) {
     return (
       <div className="text-center py-12 bg-surface/20 border border-border rounded-3xl p-6 max-w-xl mx-auto">
         <AlertTriangleIcon className="size-10 mx-auto text-rose-500 mb-2" />
         <p className="text-foreground text-base font-bold">Acceso Restringido</p>
         <p className="text-muted text-xs mt-1">
-          Solo los usuarios con el rol de Administrador cuentan con autorización para gestionar las cuentas de usuario y los roles del sistema.
+          Solo el Planificador cuenta con autorización para gestionar las cuentas de usuario y los roles del sistema.
         </p>
       </div>
     );
@@ -203,10 +226,15 @@ function UsuariosComponent() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      // "admin" es el alias heredado del Planificador: se etiqueta igual para
+      // que las cuentas sin migrar no aparezcan con un rol desconocido.
+      case "planner":
       case "admin":
-        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20 font-bold">Administrador</Badge>;
+        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20 font-bold">Planificador</Badge>;
       case "supervisor":
         return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 font-bold">Supervisor</Badge>;
+      case "warehouse":
+        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-bold">Almacén</Badge>;
       default:
         return <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-bold">Mecánico</Badge>;
     }
@@ -290,6 +318,43 @@ function UsuariosComponent() {
                   </form.Field>
 
                   {/* Email */}
+                  {/* Nombre de usuario: credencial de acceso (spec 6.1) */}
+                  <form.Field name="username">
+                    {(field) => {
+                      const hasError = field.state.meta.errors.length > 0;
+                      return (
+                        <TextField
+                          name={field.name}
+                          isRequired
+                          isInvalid={hasError}
+                          value={field.state.value}
+                          onChange={(val) => field.handleChange(val)}
+                          className="w-full flex flex-col gap-1.5"
+                        >
+                          <Label className="text-foreground/85 text-xs font-semibold">
+                            Nombre de Usuario
+                          </Label>
+                          <Input
+                            id={field.name}
+                            placeholder="Ej. jmorales1"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            onBlur={field.handleBlur}
+                            className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
+                          />
+                          <p className="text-[10px] text-muted">
+                            Credencial con la que el usuario iniciará sesión.
+                          </p>
+                          {field.state.meta.errors.map((error) => (
+                            <FieldError key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
+                              {getErrorMessage(error)}
+                            </FieldError>
+                          ))}
+                        </TextField>
+                      );
+                    }}
+                  </form.Field>
+
                   <form.Field name="email">
                     {(field) => {
                       const hasError = field.state.meta.errors.length > 0;
@@ -310,6 +375,10 @@ function UsuariosComponent() {
                             onBlur={field.handleBlur}
                             className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
                           />
+                          <p className="text-[10px] text-muted">
+                            Obligatorio para notificaciones y recuperación de contraseña; no se
+                            usa para iniciar sesión.
+                          </p>
                           {field.state.meta.errors.map((error) => (
                             <FieldError key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
                               {getErrorMessage(error)}
@@ -358,15 +427,17 @@ function UsuariosComponent() {
                         <Label className="text-foreground/85 text-xs font-semibold">Rol del Sistema</Label>
                         <Select
                           value={field.state.value}
-                          onValueChange={(val: any) => field.handleChange(val as "admin" | "supervisor" | "mechanic")}
+                          onValueChange={(val: any) => field.handleChange(val as ManagedRole)}
                         >
                           <SelectTrigger className="bg-default/60 border-border rounded-xl text-foreground text-sm h-9">
                             <SelectValue placeholder="Seleccione un rol" />
                           </SelectTrigger>
                           <SelectContent className="bg-overlay border border-border text-foreground rounded-xl">
-                            <SelectItem value="mechanic">Mecánico (Lectura / Ejecución)</SelectItem>
-                            <SelectItem value="supervisor">Supervisor (Planificación / Repuestos)</SelectItem>
-                            <SelectItem value="admin">Administrador (Control Total)</SelectItem>
+                            {ASSIGNABLE_ROLES.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label} ({option.hint})
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         {field.state.meta.errors.map((error) => (
@@ -523,8 +594,10 @@ function UsuariosComponent() {
               <TableBody>
                 {users.map((item) => {
                   const isSelf = item.id === user?.id;
-                  const isAdminUser = item.role === "admin";
-                  const isModifyDisabled = isSelf || isAdminUser || changeRoleMutation.isPending;
+                  // El Planificador (y el alias heredado "admin") está protegido frente a
+                  // cambios de rol y eliminación, igual que en el backend.
+                  const isPlannerUser = item.role === "planner" || item.role === "admin";
+                  const isModifyDisabled = isSelf || isPlannerUser || changeRoleMutation.isPending;
 
                   return (
                     <TableRow key={item.id} className="border-b border-border hover:bg-default/25 transition-colors">
@@ -558,7 +631,7 @@ function UsuariosComponent() {
                           onValueChange={(val: any) =>
                             changeRoleMutation.mutate({
                               userId: item.id,
-                              role: val as "admin" | "supervisor" | "mechanic",
+                              role: val as ManagedRole,
                             })
                           }
                           disabled={isModifyDisabled}
@@ -567,14 +640,16 @@ function UsuariosComponent() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-overlay border border-border text-foreground rounded-lg">
-                            <SelectItem value="mechanic">Mecánico</SelectItem>
-                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                            <SelectItem value="admin">Administrador</SelectItem>
+                            {ASSIGNABLE_ROLES.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
-                        {isSelf || isAdminUser ? (
+                        {isSelf || isPlannerUser ? (
                           <div className="flex justify-end pr-2 text-muted" title="Protegido contra cambios/eliminación">
                             <LockIcon className="size-4 text-muted/60" />
                           </div>

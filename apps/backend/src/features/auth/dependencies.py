@@ -1,10 +1,59 @@
-import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from fastapi import Depends, Header, HTTPException, status
 from src.features.auth.jwt_helper import decode_better_auth_jwt
 from src.features.user.domain.entities import UserRole
+
+# =============================================================================
+# Conjuntos de roles reutilizables por los routers.
+#
+# Definirlos en un solo lugar evita que las listas de permisos se desincronicen
+# entre endpoints al cambiar las reglas de negocio.
+# =============================================================================
+
+#: Único rol autorizado a gestionar inventario y a asignar repuestos a las OT.
+PLANNER_ONLY = [UserRole.PLANIFICADOR]
+
+#: Roles que pueden crear Órdenes de Trabajo (el Planificador también, para poder
+#: registrar trabajo planificado sin depender de otro usuario).
+CAN_CREATE_ORDERS = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+
+#: Roles que ejecutan trabajo de taller (iniciar / liquidar OT).
+CAN_EXECUTE_ORDERS = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
+
+#: Roles con visibilidad sobre el inventario (Almacén incluido: consulta stock global).
+CAN_VIEW_INVENTORY = [
+    UserRole.PLANIFICADOR,
+    UserRole.SUPERVISOR,
+    UserRole.MECANICO,
+    UserRole.ALMACEN,
+]
+
+#: Roles que administran el catálogo de maquinaria (altas, estados, bajas).
+CAN_MANAGE_MACHINES = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR]
+
+#: Roles con acceso a información financiera / analítica.
+CAN_VIEW_REPORTS = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR]
+
+#: Roles que pueden resolver alertas (Almacén resuelve las de bajo stock).
+CAN_RESOLVE_ALERTS = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR, UserRole.ALMACEN]
+
+#: Roles que ven la bandeja de despacho de Solvencias de Repuestos.
+CAN_VIEW_SOLVENCIES = [
+    UserRole.PLANIFICADOR,
+    UserRole.SUPERVISOR,
+    UserRole.MECANICO,
+    UserRole.ALMACEN,
+]
+
+#: Todos los roles autenticados del sistema.
+ALL_ROLES = [
+    UserRole.PLANIFICADOR,
+    UserRole.SUPERVISOR,
+    UserRole.MECANICO,
+    UserRole.ALMACEN,
+]
 
 
 @dataclass
@@ -15,25 +64,21 @@ class CurrentUser:
     role: UserRole | None = None
     email: str | None = None
     name: str | None = None
+    username: str | None = None
 
 
 def _parse_role(raw: str | None) -> UserRole | None:
-    """Normaliza el rol del JWT (acentos/mayúsculas) a un UserRole del dominio."""
+    """Normaliza el rol del JWT (acentos/mayúsculas/idioma) a un ``UserRole``.
+
+    Toda la tabla de alias (incluida la compatibilidad con el antiguo
+    ``admin``/``Administrador``) vive en ``UserRole._missing_``.
+    """
     if not raw:
         return None
-    normalized = "".join(
-        c for c in unicodedata.normalize("NFD", str(raw)) if unicodedata.category(c) != "Mn"
-    ).upper()
-    mapping = {
-        # Roles actuales de Better Auth (en inglés y cortos).
-        "ADMIN": UserRole.ADMINISTRADOR,
-        "SUPERVISOR": UserRole.SUPERVISOR,
-        "MECHANIC": UserRole.MECANICO,
-        # Compatibilidad con valores antiguos en español.
-        "ADMINISTRADOR": UserRole.ADMINISTRADOR,
-        "MECANICO": UserRole.MECANICO,
-    }
-    return mapping.get(normalized)
+    try:
+        return UserRole(raw)
+    except ValueError:
+        return None
 
 
 def _token_from_header(authorization: str) -> str:
@@ -56,6 +101,7 @@ def get_current_user(
         role=_parse_role(claims.get("role")),
         email=claims.get("email"),
         name=claims.get("name"),
+        username=claims.get("username") or claims.get("displayUsername"),
     )
 
 

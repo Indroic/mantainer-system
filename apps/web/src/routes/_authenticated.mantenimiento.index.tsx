@@ -12,6 +12,7 @@ import { useForm } from "@tanstack/react-form";
 import { WrenchIcon, PlusIcon, ClipboardListIcon } from "lucide-react";
 import { useState } from "react";
 import z from "zod";
+import { FAILURE_CATEGORIES, type FailureCategory } from "@/features/mantenimiento/types";
 
 export const Route = createFileRoute("/_authenticated/mantenimiento/")({
   component: MantenimientoIndexComponent,
@@ -38,18 +39,29 @@ const orderSchema = z.object({
     .string()
     .min(1, "Seleccione el mecánico asignado")
     .refine((v) => v !== "none", "Seleccione el mecánico asignado"),
+  // Clasificación de la falla (spec 4.1): opcional, pero si se envía debe ser
+  // una categoría válida del catálogo.
+  failure_category: z
+    .string()
+    .refine(
+      (v) => v === "" || FAILURE_CATEGORIES.some((c) => c.value === v),
+      "Seleccione una clasificación de falla válida",
+    ),
 });
 
+/** Texto de ayuda para el mecánico al describir la avería (spec 2.2). */
+const DESCRIPTION_PLACEHOLDER = "Indique aquí los repuestos necesarios para la reparación";
+
 function MantenimientoIndexComponent() {
-  const { isAdmin, isSupervisor } = useAuth();
-  const canCreate = isAdmin || isSupervisor;
+  const { canCreateOrders } = useAuth();
+  const canCreate = canCreateOrders;
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Queries
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
-  // Máquinas y mecánicos solo se necesitan para el formulario de creación,
-  // que únicamente ven Administrador/Supervisor. Se desactivan para el rol
-  // mecánico (el endpoint de mecánicos les daría 403 y no lo requieren).
+  // Máquinas y mecánicos solo se necesitan para el formulario de creación.
+  // Desde la spec 2.2 el Mecánico TAMBIÉN puede crear OT, así que estas
+  // consultas se activan para todo rol que pueda crearlas.
   const { data: machines = [] } = useMachines({ status: "ACTIVA" }, { enabled: canCreate });
   const { data: mechanics = [] } = useMechanics({ enabled: canCreate });
 
@@ -61,14 +73,22 @@ function MantenimientoIndexComponent() {
       machine_id: "",
       description: "",
       assigned_mechanic_id: "", // El usuario debe seleccionar un mecánico real
+      failure_category: "",
     },
     onSubmit: async ({ value }) => {
-      await createOrderMutation.mutateAsync(value, {
-        onSuccess: () => {
-          setDialogOpen(false);
-          form.reset();
+      await createOrderMutation.mutateAsync(
+        {
+          ...value,
+          // El backend espera `null` (no cadena vacía) cuando no se clasifica.
+          failure_category: (value.failure_category || null) as FailureCategory | null,
         },
-      });
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            form.reset();
+          },
+        },
+      );
     },
     validators: {
       onChange: orderSchema,
@@ -181,14 +201,23 @@ function MantenimientoIndexComponent() {
                           onChange={(val) => field.handleChange(val)}
                           className="w-full flex flex-col gap-1.5"
                         >
-                          <Label className="text-foreground/85 text-xs font-semibold">Descripción del Servicio / Falla</Label>
+                          <Label className="text-foreground/85 text-xs font-semibold">
+                            Descripción del Servicio / Falla y Repuestos Requeridos
+                          </Label>
                           <TextArea
                             id={field.name}
-                            placeholder="Ej. Cambio de filtros de aceite motor a las 500 hrs..."
+                            // spec 2.2: texto de ayuda para que el mecánico
+                            // indique qué repuestos hacen falta; el Planificador
+                            // los asignará al revisar la OT.
+                            placeholder={DESCRIPTION_PLACEHOLDER}
                             onBlur={field.handleBlur}
                             rows={4}
                             className="bg-default/60 border-border focus-visible:border-accent rounded-xl text-foreground text-sm"
                           />
+                          <p className="text-[10px] text-muted leading-relaxed">
+                            El Planificador recibirá un aviso para revisar esta OT y asignar los
+                            repuestos que indique aquí.
+                          </p>
                           {field.state.meta.errors.map((error) => (
                             <FieldError key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium">
                               {getErrorMessage(error)}
@@ -197,6 +226,45 @@ function MantenimientoIndexComponent() {
                         </TextField>
                       );
                     }}
+                  </form.Field>
+
+                  {/* Clasificación de la Falla (spec 4.1) */}
+                  <form.Field name="failure_category">
+                    {(field) => (
+                      <div className="space-y-1.5 flex flex-col">
+                        <Label className="text-foreground/85 text-xs font-semibold">
+                          Clasificación de la Falla
+                        </Label>
+                        <Select
+                          value={field.state.value}
+                          onValueChange={(val: any) =>
+                            // El centinela "none" representa "sin clasificar":
+                            // se guarda como cadena vacía y el submit lo pasa a null.
+                            field.handleChange(val === "none" ? "" : val)
+                          }
+                        >
+                          <SelectTrigger className="bg-default/60 border-border rounded-xl text-foreground text-sm h-9">
+                            <SelectValue placeholder="Seleccione el sistema afectado (opcional)" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-overlay border border-border text-foreground rounded-xl">
+                            <SelectItem value="none">Sin clasificar</SelectItem>
+                            {FAILURE_CATEGORIES.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted">
+                          Permite segmentar los reportes de averías por sistema del activo.
+                        </p>
+                        {field.state.meta.errors.map((error) => (
+                          <p key={getErrorMessage(error)} className="text-xs text-rose-400 font-medium mt-1">
+                            {getErrorMessage(error)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </form.Field>
 
                   {/* Mecánico Asignado */}

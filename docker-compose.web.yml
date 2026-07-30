@@ -9,8 +9,8 @@ services:
       # HARDCODEADO (prototipo). En realidad no se usan en runtime: el frontend
       # apunta al mismo origen vía el proxy inverso de nginx (URLs fijadas en el
       # código). Se dejan por compatibilidad con inject-env.sh.
-      - VITE_API_URL=https://sgmm.indroic.dev
-      - VITE_AUTH_URL=https://sgmm.indroic.dev
+      - VITE_API_URL=http://localhost:80
+      - VITE_AUTH_URL=http://localhost:80
     container_name: web
     networks:
       - dokploy-network

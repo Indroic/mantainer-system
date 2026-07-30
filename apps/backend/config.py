@@ -13,8 +13,8 @@ class ProjectConfig(ServerConfig):
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True
-    sql_database_url: str = "postgresql://indroic:vFwLIC3G4VaLWgyLmSw3@2.24.222.241:5432/mantainer_db"
-    async_sql_database_url: str = "postgresql+asyncpg://indroic:vFwLIC3G4VaLWgyLmSw3@2.24.222.241:5432/mantainer_db"
+    sql_database_url: str = "postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db"
+    async_sql_database_url: str = "postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db"
     cache_backend: ICache = MemoryCache()
     event_dispatcher: IEventDispatcher = InMemoryEventDispatcher()
     repository_discovery_paths: set[str] = {

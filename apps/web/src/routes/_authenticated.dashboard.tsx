@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { useMachines } from "@/features/maquinaria/hooks/use-machines";
+import { useFleetStatus, useMachines } from "@/features/maquinaria/hooks/use-machines";
+import FleetStatusChart from "@/features/maquinaria/components/fleet-status-chart";
 import { useOrders } from "@/features/mantenimiento/hooks/use-maintenance";
 import { useSpareParts } from "@/features/repuestos/hooks/use-spare-parts";
 import { Card, CardContent } from "@mantainer-system/ui/components/card";
@@ -83,11 +84,28 @@ function ModuleCard({ title, description, icon: Icon, iconClass, linkTo, linkLab
 
 // ── Dashboard principal ────────────────────────────────────────────────────────
 function DashboardComponent() {
-  const { user, roleLabel, isAdmin, isSupervisor } = useAuth();
+  const {
+    user,
+    roleLabel,
+    canViewReports,
+    canViewInventory,
+    canManageInventory,
+    isWarehouse,
+  } = useAuth();
 
-  const { data: machines = [], isLoading: machinesLoading } = useMachines();
-  const { data: orders = [], isLoading: ordersLoading } = useOrders();
-  const { data: spareParts = [], isLoading: partsLoading } = useSpareParts();
+  const { data: machines = [], isLoading: machinesLoading } = useMachines(
+    undefined,
+    { enabled: !isWarehouse },
+  );
+  const { data: orders = [], isLoading: ordersLoading } = useOrders(undefined, {
+    enabled: !isWarehouse,
+  });
+  const { data: spareParts = [], isLoading: partsLoading } = useSpareParts(
+    undefined,
+    { enabled: canViewInventory },
+  );
+  // Estado de la flota en % calculado por el backend (spec 4.3).
+  const { data: fleetStatus, isLoading: fleetLoading } = useFleetStatus();
 
   const activeMachines = machines.filter((m) => m.status === "ACTIVA").length;
   const inMaintenance = machines.filter((m) => m.status === "EN_MANTENIMIENTO").length;
@@ -141,7 +159,9 @@ function DashboardComponent() {
       icon: WrenchIcon,
       iconClass: "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400",
     },
-    ...(isAdmin || isSupervisor
+    // spec 3.2: la métrica de bajo stock NO se muestra al Mecánico. El
+    // Planificador y Almacén son quienes reponen inventario.
+    ...(canManageInventory || isWarehouse
       ? [
           {
             label: "Alertas de Stock",
@@ -174,15 +194,15 @@ function DashboardComponent() {
       linkLabel: "Abrir tablero de OTs",
       hoverClass: "hover:border-amber-500/30",
     },
-    ...(isAdmin || isSupervisor
+    ...(canViewReports
       ? [
           {
-            title: "Informes Financieros",
-            description: "Inspecciona la inversión de repuestos por activo o gestiona el inventario del almacén.",
+            title: "Analítica y Reportes",
+            description: "Gastos por activo, repuestos más usados e índice de averías, con filtros anuales, mensuales y semanales.",
             icon: TrendingUpIcon,
             iconClass: "bg-cyan-500/10 text-cyan-400",
             linkTo: "/reportes",
-            linkLabel: "Ver reportes financieros",
+            linkLabel: "Ver reportes analíticos",
             hoverClass: "hover:border-cyan-500/30",
           } satisfies ModuleCardProps,
         ]
@@ -205,14 +225,19 @@ function DashboardComponent() {
       {/* 2. Métricas */}
       <div className={cn(
         "grid grid-cols-1 sm:grid-cols-2 gap-6",
-        (isAdmin || isSupervisor) ? "lg:grid-cols-4" : "lg:grid-cols-3"
+        metrics.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"
       )}>
         {metrics.map((metric) => (
           <MetricCard key={metric.label} {...metric} />
         ))}
       </div>
 
-      {/* 3. Módulos de acceso rápido */}
+      {/* 3. Estado de la flota en porcentajes, en tiempo real (spec 4.3) */}
+      {!isWarehouse && (
+        <FleetStatusChart data={fleetStatus} isLoading={fleetLoading} />
+      )}
+
+      {/* 4. Módulos de acceso rápido */}
       <div className="space-y-3">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Acciones y Módulos</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

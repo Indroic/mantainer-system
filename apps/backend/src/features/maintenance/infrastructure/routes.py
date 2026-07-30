@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends, status
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import require_roles
+from src.features.auth.dependencies import (
+    CAN_CREATE_ORDERS,
+    CAN_EXECUTE_ORDERS,
+    PLANNER_ONLY,
+    require_roles,
+)
 from src.features.machine.infrastructure.repositories import MachineRepository
 from src.features.maintenance.application.dtos import (
     AddSparePartToOrderCommand,
+    ClassifyFailureCommand,
     CreateMaintenanceCommand,
     LiquidateMaintenanceCommand,
     MaintenanceResponse,
@@ -26,12 +32,16 @@ from src.features.maintenance.application.use_cases.query_orders import (
 from src.features.maintenance.application.use_cases.start_execution import (
     StartMaintenanceUseCase,
 )
+from src.features.maintenance.domain.entities import (
+    FAILURE_CATEGORY_LABELS,
+    FailureCategory,
+    failure_category_label,
+)
 from src.features.maintenance.domain.services import MaintenanceDomainService
 from src.features.maintenance.infrastructure.repositories import (
     MaintenanceOrderRepository,
 )
 from src.features.inventory.infrastructure.repositories import SparePartRepository
-from src.features.user.domain.entities import UserRole
 from src.features.user.infrastructure.repositories import UserRepository
 from src.shared.infrastructure.database.db import get_uow
 
@@ -81,13 +91,19 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
     except Exception:
         pass
 
-    # 2. Resolver nombre del mecánico asignado
+    # 2. Resolver nombre del mecánico asignado y del creador de la OT
     mechanic_name: str | None = None
+    created_by_name: str | None = None
     try:
         user_repo = UserRepository(uow)
         mechanic_metadata = await user_repo.get_by_id(order.assigned_mechanic_id)
-        names = await resolve_user_names(uow.session, [mechanic_metadata.better_auth_user_id])
+        lookup_ids = [mechanic_metadata.better_auth_user_id]
+        if getattr(order, "created_by", None):
+            lookup_ids.append(order.created_by)
+        names = await resolve_user_names(uow.session, lookup_ids)
         mechanic_name = names.get(mechanic_metadata.better_auth_user_id)
+        if getattr(order, "created_by", None):
+            created_by_name = names.get(order.created_by)
     except Exception:
         pass
 
@@ -123,6 +139,21 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
             )
         )
 
+    # 4. Solvencias de repuestos emitidas para esta OT (descargables en PDF).
+    solvency_dtos = []
+    try:
+        from src.features.solvency.application.use_cases.query_solvencies import (
+            to_solvency_response,
+        )
+        from src.features.solvency.infrastructure.repositories import SolvencyRepository
+
+        solvencies = await SolvencyRepository(uow).list_by_order(order.id)
+        solvency_dtos = [await to_solvency_response(s, uow) for s in solvencies]
+    except Exception:
+        # Las solvencias son información complementaria: si fallan, la OT sigue
+        # siendo consultable.
+        solvency_dtos = []
+
     return MaintenanceResponse(
         id=order.id,
         machine_id=order.machine_id,
@@ -131,8 +162,16 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
         assigned_mechanic_id=order.assigned_mechanic_id,
         assigned_mechanic_name=mechanic_name,
         next_service_horometer=order.next_service_horometer,
+        failure_category=getattr(order, "failure_category", None),
+        failure_category_label=failure_category_label(
+            getattr(order, "failure_category", None)
+        ),
+        work_performed=getattr(order, "work_performed", None),
+        created_by=getattr(order, "created_by", None),
+        created_by_name=created_by_name,
         spare_parts=spare_parts_dtos,
         machine=machine_dto,
+        solvencies=solvency_dtos,
         created_at=order.created_at,
         updated_at=order.updated_at,
         is_active=order.is_active,
@@ -149,11 +188,13 @@ async def create_order(
     command: CreateMaintenanceCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_CREATE_ORDERS)),
 ) -> MaintenanceResponse:
     """Registra y programa una nueva orden de trabajo de mantenimiento.
 
-    Restringido a Administradores y Supervisores.
+    Permitido al Supervisor y al Mecánico (y al Planificador). Al crearla, el
+    Planificador recibe automáticamente una notificación para revisar la OT y
+    asignar los repuestos necesarios (spec 2.2).
     """
     use_case = CreateMaintenanceUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
@@ -173,9 +214,7 @@ async def start_maintenance(
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
     current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> MaintenanceResponse:
     """Cambia el estado de una orden de trabajo a EN_EJECUCION.
@@ -200,15 +239,14 @@ async def add_spare_part(
     command: AddSparePartToOrderCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
-    current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
-    ),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ) -> MaintenanceSparePartResponse:
-    """Asocia repuestos requeridos a una orden de trabajo que esté EN_EJECUCION.
+    """Asocia repuestos requeridos a una orden de trabajo.
 
-    Permitido para Administradores, Supervisores y Mecánicos.
+    EXCLUSIVO del Planificador (spec 2.1: el Supervisor ya no puede registrar ni
+    asignar repuestos). Al asignar se emite automáticamente la Solvencia de
+    Repuestos y se notifica al Supervisor, al Mecánico asignado y a Almacén
+    (spec 3.3).
     """
     use_case = AddSparePartToOrderUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
@@ -247,16 +285,15 @@ async def liquidate_maintenance(
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
     current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> MaintenanceResponse:
     """Liquida la orden de trabajo aplicando la transacción ACID.
 
-    Descuenta físicamente el stock de repuestos en el inventario, calcula 
-    el próximo servicio y devuelve la máquina vinculada a estado ACTIVA. 
-    Permitido para Administradores, Supervisores y Mecánicos.
+    Descuenta físicamente el stock de repuestos en el inventario, guarda la
+    descripción del trabajo realizado (spec 5.1), calcula el próximo servicio y
+    devuelve la máquina vinculada a estado ACTIVA. Al cerrarse, el Planificador
+    recibe una notificación automática (spec 3.1).
     """
     use_case = LiquidateMaintenanceUseCase(service, uow)
     command.performed_by = current_user.better_auth_user_id
@@ -272,9 +309,7 @@ async def liquidate_maintenance(
     response_model=QueryResponseDTO,
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_EXECUTE_ORDERS)
         )
     ],
 )
@@ -296,9 +331,7 @@ async def query_orders(
     response_model=list[MaintenanceResponse],
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_EXECUTE_ORDERS)
         )
     ],
 )
@@ -333,9 +366,7 @@ async def get_orders(
     response_model=MaintenanceResponse,
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_EXECUTE_ORDERS)
         )
     ],
 )
@@ -359,9 +390,7 @@ async def start_maintenance_path(
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
     current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> MaintenanceResponse:
     """Cambia el estado de una orden de trabajo a EN_EJECUCION utilizando parámetros en la URL."""
@@ -387,23 +416,33 @@ async def add_spare_part_path(
     payload: dict,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
-    current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
-    ),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ) -> MaintenanceResponse:
-    """Asocia un repuesto requerido a una orden de trabajo utilizando parámetros en la URL y retorna el estado actualizado de la orden."""
+    """Asigna un repuesto a la OT (ruta por URL) y devuelve la orden actualizada.
+
+    EXCLUSIVO del Planificador. Emite la Solvencia de Repuestos y notifica al
+    Supervisor, al Mecánico asignado y a Almacén (spec 2.1 / 3.3).
+    """
     from uuid import UUID
+
+    spare_part_id = payload.get("spare_part_id")
+    if not spare_part_id:
+        raise ValueError("Se requiere 'spare_part_id' en el cuerpo de la petición.")
+
+    try:
+        quantity = int(payload.get("quantity", 1))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("La cantidad de repuesto debe ser un número entero.") from exc
+
     command = AddSparePartToOrderCommand(
         order_id=UUID(order_id),
-        spare_part_id=UUID(payload["spare_part_id"]),
-        quantity=int(payload["quantity"]),
-        performed_by=current_user.better_auth_user_id
+        spare_part_id=UUID(str(spare_part_id)),
+        quantity=quantity,
+        performed_by=current_user.better_auth_user_id,
     )
     use_case = AddSparePartToOrderUseCase(service, uow)
     await use_case.execute(command)
-    
+
     repo = MaintenanceOrderRepository(uow)
     order = await repo.get_by_id(UUID(order_id))
     return await _to_maintenance_response(order, uow)
@@ -419,14 +458,16 @@ async def liquidate_maintenance_path(
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     service: MaintenanceDomainService = Depends(get_maintenance_service),
     current_user: UserMetadataResponse = Depends(
-        require_roles(
-            [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-        )
+        require_roles(CAN_EXECUTE_ORDERS)
     ),
 ) -> MaintenanceResponse:
-    """Liquida la orden de trabajo desde el frontend, actualizando primero el horómetro de la máquina si se proporciona."""
+    """Liquida la OT desde el frontend, actualizando primero el horómetro.
+
+    Acepta ``work_performed`` con la descripción detallada del trabajo realizado
+    que el técnico introduce antes de cerrar la orden (spec 5.1).
+    """
     from uuid import UUID
-    
+
     current_horometer = payload.get("current_horometer")
     if current_horometer is not None:
         order_repo = MaintenanceOrderRepository(uow)
@@ -448,14 +489,67 @@ async def liquidate_maintenance_path(
         )
         await update_horometer_use_case.execute(horometer_cmd)
 
+    work_performed = payload.get("work_performed") or payload.get("work_description")
+
     command = LiquidateMaintenanceCommand(
         order_id=UUID(order_id),
-        performed_by=current_user.better_auth_user_id
+        work_performed=str(work_performed).strip() if work_performed else None,
+        performed_by=current_user.better_auth_user_id,
     )
     use_case = LiquidateMaintenanceUseCase(service, uow)
     await use_case.execute(command)
-    
+
     repo = MaintenanceOrderRepository(uow)
     order = await repo.get_by_id(UUID(order_id))
+    return await _to_maintenance_response(order, uow)
+
+
+@router.get("/failure-categories/catalog", response_model=list[dict])
+async def list_failure_categories() -> list[dict]:
+    """Catálogo de clasificaciones de falla para poblar selectores y filtros (spec 4.1).
+
+    Es un catálogo estático del dominio, por eso no requiere rol: cualquier
+    usuario autenticado que pueda ver una OT necesita traducir el código.
+    """
+    return [
+        {"value": category.value, "label": label}
+        for category, label in FAILURE_CATEGORY_LABELS.items()
+    ]
+
+
+@router.put("/{order_id}/failure-category", response_model=MaintenanceResponse)
+async def classify_failure(
+    order_id: str,
+    payload: dict,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    service: MaintenanceDomainService = Depends(get_maintenance_service),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_EXECUTE_ORDERS)),
+) -> MaintenanceResponse:
+    """Clasifica o reclasifica la falla de una OT existente (spec 4.1)."""
+    from uuid import UUID
+
+    raw_category = payload.get("failure_category")
+    category: FailureCategory | None = None
+    if raw_category:
+        try:
+            category = FailureCategory(str(raw_category))
+        except ValueError as exc:
+            raise ValueError(
+                f"Categoría de falla inválida: '{raw_category}'. "
+                f"Valores permitidos: {[c.value for c in FailureCategory]}."
+            ) from exc
+
+    command = ClassifyFailureCommand(
+        order_id=UUID(order_id),
+        failure_category=category,
+        performed_by=current_user.better_auth_user_id,
+    )
+
+    async with uow:
+        await service.classify_failure(command.order_id, command.failure_category)
+        await uow.commit()
+
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(command.order_id)
     return await _to_maintenance_response(order, uow)
 

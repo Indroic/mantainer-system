@@ -8,18 +8,29 @@ import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
-export default function SignInForm() {
+/**
+ * Formulario de inicio de sesión.
+ *
+ * spec 6.1: la credencial principal es el NOMBRE DE USUARIO (p. ej. "jmorales1"),
+ * no el correo electrónico. El correo sigue siendo obligatorio en la cuenta, pero
+ * solo se usa para notificaciones y para la recuperación de contraseña.
+ */
+export default function SignInForm({
+  onForgotPassword,
+}: {
+  onForgotPassword?: () => void;
+}) {
   const { isPending } = authClient.useSession();
 
   const form = useForm({
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
     },
     onSubmit: async ({ value }) => {
-      await authClient.signIn.email(
+      await authClient.signIn.username(
         {
-          email: value.email,
+          username: value.username.trim(),
           password: value.password,
         },
         {
@@ -31,9 +42,14 @@ export default function SignInForm() {
             // Un fallo de red contra el servidor de auth llega como "Failed to fetch":
             // mostramos un mensaje claro en español en lugar del texto crudo.
             const raw = error.error.message || error.error.statusText || "";
-            const message = /failed to fetch|fetch failed|networkerror/i.test(raw)
-              ? "No se pudo contactar al servidor de autenticación"
-              : raw || "No se pudo iniciar sesión";
+            let message: string;
+            if (/failed to fetch|fetch failed|networkerror/i.test(raw)) {
+              message = "No se pudo contactar al servidor de autenticación";
+            } else if (/invalid username or password|unauthorized/i.test(raw)) {
+              message = "Nombre de usuario o contraseña incorrectos";
+            } else {
+              message = raw || "No se pudo iniciar sesión";
+            }
             toast.error(message);
           },
         },
@@ -41,7 +57,14 @@ export default function SignInForm() {
     },
     validators: {
       onSubmit: z.object({
-        email: z.email("Correo electrónico inválido"),
+        username: z
+          .string()
+          .min(3, "El nombre de usuario debe tener al menos 3 caracteres")
+          .max(30, "El nombre de usuario no puede exceder 30 caracteres")
+          .regex(
+            /^[a-zA-Z0-9_.]+$/,
+            "Solo se permiten letras, números, punto y guion bajo",
+          ),
         password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
       }),
     },
@@ -65,25 +88,27 @@ export default function SignInForm() {
         <p className="text-sm text-slate-400">Ingresa tus credenciales para continuar</p>
       </div>
 
-      {/* Correo electrónico */}
-      <form.Field name="email">
+      {/* Nombre de usuario (credencial de acceso) */}
+      <form.Field name="username">
         {(field) => {
           const hasError = field.state.meta.errors.length > 0;
           return (
             <TextField
               name={field.name}
-              type="email"
+              type="text"
               isRequired
               isInvalid={hasError}
               value={field.state.value}
               onChange={(val) => field.handleChange(val)}
               className="flex w-full flex-col gap-1.5"
             >
-              <Label className="text-xs font-semibold text-slate-300">Correo electrónico</Label>
+              <Label className="text-xs font-semibold text-slate-300">Nombre de usuario</Label>
               <Input
                 id={field.name}
-                placeholder="tucorreo@empresa.com"
-                autoComplete="email"
+                placeholder="jmorales1"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 onBlur={field.handleBlur}
                 className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-400"
               />
@@ -142,6 +167,17 @@ export default function SignInForm() {
           </Button>
         )}
       </form.Subscribe>
+
+      {/* spec 6.2: recuperación de contraseña por código de 6 dígitos */}
+      {onForgotPassword && (
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          className="mx-auto text-xs font-medium text-slate-400 transition-colors hover:text-indigo-400"
+        >
+          ¿Olvidaste tu contraseña?
+        </button>
+      )}
     </form>
   );
 }

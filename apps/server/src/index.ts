@@ -6,9 +6,27 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-// Clave de creación del administrador (HARDCODEADA). Quien la conozca puede crear
-// un Administrador desde /setup-admin. Cámbiala por una cadena privada en producción.
+// Clave de creación del Planificador (HARDCODEADA). Quien la conozca puede crear
+// un Planificador desde /setup-admin. Cámbiala por una cadena privada en producción.
 const ADMIN_CREATION_KEY = "SGMM-CLAVE-ADMIN-2026";
+
+/** Rol del Planificador en Better Auth (antes se llamaba "admin"). */
+const PLANNER_ROLE = "planner";
+
+/**
+ * Deriva un nombre de usuario válido para el plugin `username`
+ * ([a-zA-Z0-9_.], 3-30 caracteres) a partir del correo o del nombre.
+ *
+ * Se usa solo como respaldo: el formulario de alta pide el usuario explícitamente.
+ */
+function deriveUsername(email: string, name: string): string {
+  const base = (email.split("@")[0] || name || "usuario")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // quita acentos
+    .replace(/[^a-z0-9_.]/g, "");
+  return (base.length >= 3 ? base : `${base}usr`).slice(0, 30);
+}
 
 const app = new Hono();
 
@@ -18,7 +36,7 @@ app.use(logger());
 // del proxy inverso de la web) las peticiones del navegador son del mismo origen
 // y CORS deja de aplicar; este middleware queda como red de seguridad por si el
 // servicio se expusiera directamente.
-const ALLOWED_ORIGINS = ["https://sgmm.indroic.dev"];
+const ALLOWED_ORIGINS = ["http://localhost:80"];
 
 app.use(
   "/*",
@@ -34,13 +52,16 @@ app.use(
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
-// Crea un usuario Administrador en Better Auth, gateado por una clave estática.
-// No requiere admin previo ni JWT: registra vía Better Auth y fija el rol en DB.
-app.post("/create-admin", async (c) => {
+// Crea un usuario Planificador en Better Auth, gateado por una clave estática.
+// No requiere sesión previa ni JWT: registra vía Better Auth y fija el rol en DB.
+// El acceso se hará con `username` (spec 6.1); el correo es obligatorio pero solo
+// se usa para notificaciones y recuperación de contraseña.
+const createPlannerHandler = async (c: any) => {
   let body: {
     creation_key?: string;
     name?: string;
     email?: string;
+    username?: string;
     password?: string;
   };
   try {
@@ -56,29 +77,53 @@ app.post("/create-admin", async (c) => {
     return c.json({ error: "Faltan campos: name, email y password" }, 400);
   }
 
+  const desiredUsername = (
+    body.username?.trim() || deriveUsername(body.email, body.name)
+  ).trim();
+
+  if (!/^[a-zA-Z0-9_.]{3,30}$/.test(desiredUsername)) {
+    return c.json(
+      {
+        error:
+          "El nombre de usuario debe tener entre 3 y 30 caracteres y solo puede " +
+          "contener letras, números, punto y guion bajo.",
+      },
+      400,
+    );
+  }
+
   try {
     // createUser (plugin admin) crea el usuario con su rol en una sola llamada y
     // NO pasa por `disableSignUp`. Llamado server-side sin headers, no exige una
-    // sesión de admin previa.
+    // sesión de Planificador previa. `username` va en `data` porque es un campo
+    // aportado por el plugin username, no un campo base de createUser.
     const result = await auth.api.createUser({
       body: {
         email: body.email,
         password: body.password,
         name: body.name,
-        role: "admin",
-      },
+        role: PLANNER_ROLE,
+        data: {
+          username: desiredUsername.toLowerCase(),
+          displayUsername: desiredUsername,
+        },
+      } as never,
     });
     const userId = result?.user?.id;
     if (!userId) {
       return c.json({ error: "No se pudo crear el usuario" }, 500);
     }
-    return c.json({ ok: true, userId });
+    return c.json({ ok: true, userId, username: desiredUsername });
   } catch (err) {
     const message =
-      err instanceof Error ? err.message : "Error al crear el administrador";
+      err instanceof Error ? err.message : "Error al crear el Planificador";
     return c.json({ error: message }, 400);
   }
-});
+};
+
+app.post("/create-planner", createPlannerHandler);
+// Alias heredado: mantiene compatibilidad con clientes que aún llaman /create-admin.
+app.post("/create-admin", createPlannerHandler);
 
 app.use(
   "/trpc/*",

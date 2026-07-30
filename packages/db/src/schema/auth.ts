@@ -4,11 +4,19 @@ import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  // El correo sigue siendo obligatorio y único (se usa para la recuperación de
+  // contraseña por código), pero YA NO es la credencial de acceso: el login se
+  // hace con `username`.
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  // Campos del plugin username de Better Auth. `username` se almacena
+  // normalizado en minúsculas y es la credencial de inicio de sesión;
+  // `displayUsername` conserva las mayúsculas tal como las escribió el usuario.
+  username: text("username").unique(),
+  displayUsername: text("display_username"),
   // Campos del plugin admin de Better Auth. `role` almacena el rol de negocio
-  // (Administrador | Supervisor | Mecánico) y viaja en el JWT.
+  // (planner | supervisor | mechanic | warehouse) y viaja en el JWT.
   role: text("role"),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),

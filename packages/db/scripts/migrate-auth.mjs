@@ -48,6 +48,11 @@ ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "ban_expires" timestamp;
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;
 
+-- Columnas del plugin username: el login pasa a hacerse por nombre de usuario
+-- en lugar de correo electrónico.
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "username" text;
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "display_username" text;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "user_email_unique" ON "user" ("email");
 
 -- ----- TABLA session -----
@@ -115,6 +120,39 @@ BEGIN
       FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE;
   END IF;
 END $$;
+
+-- ----- MIGRACIÓN DE DATOS: "admin" pasa a llamarse "planner" (Planificador) -----
+-- El rol se renombró en toda la aplicación. Se ejecuta antes de crear el índice
+-- único de username para que un fallo de backfill no deje roles a medio migrar.
+UPDATE "user" SET "role" = 'planner' WHERE lower("role") IN ('admin', 'administrador');
+UPDATE "user" SET "role" = 'mechanic' WHERE lower("role") = 'mecanico';
+
+-- ----- BACKFILL de username para cuentas creadas antes del cambio de login -----
+-- Sin username esas cuentas no podrían iniciar sesión. Derivamos uno de la parte
+-- local del correo, saneado al juego de caracteres que admite el plugin
+-- ([a-zA-Z0-9_.]) y en minúsculas, que es la forma normalizada que espera.
+UPDATE "user"
+SET "username" = regexp_replace(lower(split_part("email", '@', 1)), '[^a-z0-9_.]', '', 'g')
+WHERE "username" IS NULL
+  AND regexp_replace(lower(split_part("email", '@', 1)), '[^a-z0-9_.]', '', 'g') <> '';
+
+-- Si el saneado produjo colisiones o cadenas demasiado cortas (el plugin exige
+-- 3 caracteres), añadimos un sufijo estable derivado del id del usuario.
+UPDATE "user" u
+SET "username" = u."username" || '.' || right(md5(u."id"), 4)
+WHERE u."username" IS NOT NULL
+  AND (
+    length(u."username") < 3
+    OR EXISTS (
+      SELECT 1 FROM "user" d
+      WHERE d."username" = u."username" AND d."id" <> u."id"
+    )
+  );
+
+UPDATE "user" SET "display_username" = "username" WHERE "display_username" IS NULL;
+
+-- El índice único se crea al final, cuando el backfill ya garantiza unicidad.
+CREATE UNIQUE INDEX IF NOT EXISTS "user_username_unique" ON "user" ("username");
 `;
 
 const client = new pg.Client({ connectionString: url });

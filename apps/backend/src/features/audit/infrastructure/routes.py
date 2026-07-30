@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import require_roles
+from src.features.auth.dependencies import PLANNER_ONLY, require_roles
 from src.features.audit.application.dtos import AuditLogResponse
 from src.features.audit.application.use_cases.query_audit_logs import (
     QueryAuditLogsUseCase,
 )
 from src.features.audit.infrastructure.repositories import AuditLogRepository
-from src.features.user.domain.entities import UserRole
 from src.shared.infrastructure.database.db import get_uow
 from src.shared.infrastructure.database.user_lookup import resolve_user_names
 
@@ -33,7 +32,7 @@ def _build_audit_log_response(item, performed_by_name: str | None) -> AuditLogRe
 @router.post(
     "/query",
     response_model=QueryResponseDTO,
-    dependencies=[Depends(require_roles([UserRole.ADMINISTRADOR]))],
+    dependencies=[Depends(require_roles(PLANNER_ONLY))],
 )
 async def query_audit_logs(
     query: QueryRequestDTO,
@@ -51,7 +50,7 @@ async def query_audit_logs(
 @router.get(
     "/",
     response_model=list[AuditLogResponse],
-    dependencies=[Depends(require_roles([UserRole.ADMINISTRADOR]))],
+    dependencies=[Depends(require_roles(PLANNER_ONLY))],
 )
 async def get_audit_logs(
     entity_name: str | None = None,

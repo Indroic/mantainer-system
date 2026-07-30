@@ -9,7 +9,10 @@ import type {
 } from "../types";
 import { toast } from "sonner";
 
-export function useOrders(filters?: { status?: string }) {
+export function useOrders(
+  filters?: { status?: string },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["maintenance-orders", filters],
     queryFn: async () => {
@@ -17,9 +20,14 @@ export function useOrders(filters?: { status?: string }) {
       if (filters?.status && filters.status !== "ALL") {
         params.status = filters.status;
       }
-      return await apiClient.get<MaintenanceOrderResponse[]>("/maintenance/", { params });
+      const data = await apiClient.get<MaintenanceOrderResponse[]>("/maintenance/", {
+        params,
+      });
+      return Array.isArray(data) ? data : [];
     },
     staleTime: 10 * 1000, // Refrescar rápido debido al flujo en tiempo real del taller
+    // El rol Almacén no participa en el flujo de OT: se evita el 403.
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -30,9 +38,9 @@ export function useMechanics(options?: { enabled?: boolean }) {
       return await apiClient.get<MechanicResponse[]>("/user-metadata/mechanics");
     },
     staleTime: 60 * 1000,
-    // El endpoint /user-metadata/mechanics está restringido a Administrador y
-    // Supervisor. Solo se necesita para programar OT (que el mecánico no puede),
-    // así que se desactiva para el rol mecánico y evitamos un 403 innecesario.
+    // El endpoint /user-metadata/mechanics está restringido a los roles que
+    // pueden crear OT (Planificador, Supervisor y Mecánico). Se desactiva para
+    // quien no puede crearlas y evitamos un 403 innecesario.
     enabled: options?.enabled ?? true,
   });
 }
@@ -113,7 +121,13 @@ export function useAddSparePartToOrder(orderId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-orders", orderId] });
       queryClient.invalidateQueries({ queryKey: ["spare-parts"] });
-      toast.success("Repuesto asignado con éxito a la orden");
+      // La asignación emite la Solvencia y notifica a Supervisor, Mecánico y
+      // Almacén: hay que refrescar ambas bandejas (spec 3.3).
+      queryClient.invalidateQueries({ queryKey: ["solvencies"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success(
+        "Repuesto asignado. Solvencia de repuestos emitida y notificada a Almacén.",
+      );
     },
     onError: (error: any) => {
       toast.error(error?.message || "Error al asignar el repuesto");
@@ -137,6 +151,10 @@ export function useLiquidateOrder(orderId: string) {
       queryClient.invalidateQueries({ queryKey: ["maintenance-orders", orderId] });
       queryClient.invalidateQueries({ queryKey: ["machines"] });
       queryClient.invalidateQueries({ queryKey: ["spare-parts"] });
+      // Al liquidar cambia el estado de la máquina (vuelve a ACTIVA) y se
+      // notifica al Planificador (spec 3.1).
+      queryClient.invalidateQueries({ queryKey: ["fleet-status"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.success("Orden de trabajo liquidada con éxito");
     },
     onError: (error: any) => {

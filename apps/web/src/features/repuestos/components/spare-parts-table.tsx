@@ -15,8 +15,8 @@ interface SparePartsTableProps {
 }
 
 export default function SparePartsTable({ parts, canEdit = true }: SparePartsTableProps) {
-  const { isAdmin, isSupervisor } = useAuth();
-  const canSeeFinancials = isAdmin || isSupervisor;
+  const { canViewFinancials } = useAuth();
+  const canSeeFinancials = canViewFinancials;
   const [selectedPart, setSelectedPart] = useState<SparePartResponse | null>(null);
   const [newStock, setNewStock] = useState<number>(0);
   const [isModalOpen, setIsModalOpen] = useState(false);

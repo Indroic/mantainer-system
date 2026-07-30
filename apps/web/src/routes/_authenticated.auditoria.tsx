@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/auditoria")({
 });
 
 function AuditoriaComponent() {
-  const { isAdmin } = useAuth();
+  const { canViewAudit } = useAuth();
   const [entityName, setEntityName] = useState("ALL");
   const [action, setAction] = useState("ALL");
 
@@ -21,13 +21,13 @@ function AuditoriaComponent() {
     action,
   });
 
-  if (!isAdmin) {
+  if (!canViewAudit) {
     return (
       <div className="text-center py-12 bg-surface/20 border border-border rounded-3xl p-6 max-w-xl mx-auto">
         <AlertTriangleIcon className="size-10 mx-auto text-rose-500 mb-2" />
         <p className="text-foreground text-base font-bold">Acceso Restringido</p>
         <p className="text-muted-foreground text-xs mt-1">
-          Solo los usuarios con el rol de Administrador cuentan con autorización para realizar auditorías forenses sobre las operaciones transaccionales.
+          Solo el Planificador cuenta con autorización para realizar auditorías forenses sobre las operaciones transaccionales.
         </p>
       </div>
     );

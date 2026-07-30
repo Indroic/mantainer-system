@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/maquinaria/$id/")({
 
 function MaquinariaFichaComponent() {
   const { id } = Route.useParams();
-  const { isAdmin, isSupervisor } = useAuth();
+  const { canManageMachines } = useAuth();
 
   // Queries
   const { data: machine, isLoading: machineLoading } = useMachine(id);
@@ -217,8 +217,8 @@ function MaquinariaFichaComponent() {
                 </CardContent>
               </Card>
 
-              {/* Control de Estado de Activo (Administrador y Supervisor) */}
-              {(isAdmin || isSupervisor) && (
+              {/* Control de Estado de Activo (Planificador y Supervisor) */}
+              {canManageMachines && (
                 <Card className="border-border bg-card backdrop-blur-md rounded-2xl shadow-xl">
                   <CardHeader className="border-b border-border pb-3">
                     <CardTitle className="text-sm font-bold text-card-foreground flex items-center gap-2">

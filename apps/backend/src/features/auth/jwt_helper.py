@@ -68,6 +68,11 @@ def decode_better_auth_jwt(token: str) -> dict:
             "name": payload.get("name") or nested_user.get("name"),
             # El rol proviene del plugin admin de Better Auth y viaja en el JWT.
             "role": payload.get("role") or nested_user.get("role"),
+            # El plugin username de Better Auth añade estos claims: el login se
+            # hace por nombre de usuario, no por correo.
+            "username": payload.get("username") or nested_user.get("username"),
+            "displayUsername": payload.get("displayUsername")
+            or nested_user.get("displayUsername"),
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(

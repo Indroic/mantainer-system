@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 
+import ForgotPasswordForm from "@/components/forgot-password-form";
 import SignInForm from "@/components/sign-in-form";
 
 export const Route = createFileRoute("/login")({
@@ -7,6 +9,10 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
+  // La recuperación de contraseña (spec 6.2) se resuelve en la misma pantalla
+  // para no perder el contexto visual del acceso.
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   return (
     <div className="relative flex h-screen w-screen items-center justify-center bg-slate-950 overflow-hidden text-slate-100 font-sans">
       {/* Círculos con gradiente decorativos en el fondo */}
@@ -27,16 +33,22 @@ function RouteComponent() {
           </span>
         </div>
 
-        <SignInForm />
+        {showForgotPassword ? (
+          <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
+        ) : (
+          <SignInForm onForgotPassword={() => setShowForgotPassword(true)} />
+        )}
 
-        <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
-          <Link
-            to="/setup-admin"
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-indigo-400"
-          >
-            Configurar administrador inicial
-          </Link>
-        </div>
+        {!showForgotPassword && (
+          <div className="mt-6 border-t border-slate-800/80 pt-4 text-center">
+            <Link
+              to="/setup-admin"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-indigo-400"
+            >
+              Configurar Planificador inicial
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

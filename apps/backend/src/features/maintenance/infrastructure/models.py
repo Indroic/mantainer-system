@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, Uuid
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import relationship
 from hexcore.infrastructure.repositories.orms.sqlalchemy import BaseModel
 
@@ -32,6 +32,13 @@ class MaintenanceOrderModel(BaseModel):
         Uuid, ForeignKey("user_metadata.id"), nullable=False
     )
     next_service_horometer = Column(Float, nullable=True)
+    # Clasificación de la falla, indexada porque la analítica de averías filtra
+    # y agrupa por esta columna (spec 4.1 / 4.2).
+    failure_category = Column(String(50), nullable=True, index=True)
+    # Descripción detallada del trabajo realizado, capturada al liquidar (spec 5.1).
+    work_performed = Column(Text, nullable=True)
+    # ID de Better Auth de quien registró la OT (Supervisor o Mecánico).
+    created_by = Column(String(255), nullable=True)
 
     spare_parts = relationship(
         "MaintenanceSparePartModel",

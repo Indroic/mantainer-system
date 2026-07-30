@@ -2,6 +2,7 @@ from uuid import UUID
 from hexcore.domain.services import BaseDomainService
 from src.features.machine.domain.entities import MachineStatus
 from src.features.maintenance.domain.entities import (
+    FailureCategory,
     MaintenanceOrder,
     MaintenanceSparePart,
 )
@@ -27,7 +28,12 @@ class MaintenanceDomainService(BaseDomainService):
         return await self._repo.get_by_id(order_id)
 
     async def create_order(
-        self, machine_id: UUID, description: str, assigned_mechanic_id: UUID
+        self,
+        machine_id: UUID,
+        description: str,
+        assigned_mechanic_id: UUID,
+        failure_category: FailureCategory | None = None,
+        created_by: str | None = None,
     ) -> MaintenanceOrder:
         """Registra y programa una nueva orden de trabajo."""
         # Validar existencia de la máquina y mecánico asignado
@@ -43,6 +49,8 @@ class MaintenanceDomainService(BaseDomainService):
             machine_id=machine.id,
             description=description,
             assigned_mechanic_id=mechanic.id,
+            failure_category=failure_category,
+            created_by=created_by,
         )
         await self._repo.save(order)
         return order
@@ -62,8 +70,13 @@ class MaintenanceDomainService(BaseDomainService):
 
     async def add_spare_part(
         self, order_id: UUID, spare_part_id: UUID, quantity: int
-    ) -> MaintenanceSparePart:
-        """Registra repuestos requeridos durante la ejecución de la orden."""
+    ) -> tuple[MaintenanceOrder, MaintenanceSparePart]:
+        """Registra un repuesto requerido en la orden de trabajo.
+
+        Devuelve también la orden porque quien invoca necesita su contexto
+        (máquina, mecánico asignado, creador) para emitir la Solvencia de
+        Repuestos y las notificaciones asociadas (spec 3.3).
+        """
         order = await self.get_by_id(order_id)
 
         # Validamos que exista el repuesto en inventario
@@ -74,9 +87,20 @@ class MaintenanceDomainService(BaseDomainService):
 
         # Persistimos la orden para actualizar la lista en BD
         await self._repo.save(order)
-        return req
+        return order, req
 
-    async def liquidate_order(self, order_id: UUID) -> MaintenanceOrder:
+    async def classify_failure(
+        self, order_id: UUID, failure_category: FailureCategory | None
+    ) -> MaintenanceOrder:
+        """Asigna o corrige la categoría de falla de una OT existente."""
+        order = await self.get_by_id(order_id)
+        order.classify_failure(failure_category)
+        await self._repo.save(order)
+        return order
+
+    async def liquidate_order(
+        self, order_id: UUID, work_performed: str | None = None
+    ) -> MaintenanceOrder:
         """Liquida la orden de trabajo realizando descuentos de stock de repuestos y cálculos del próximo mantenimiento."""
         order = await self.get_by_id(order_id)
 
@@ -86,6 +110,7 @@ class MaintenanceDomainService(BaseDomainService):
         # Ejecutamos las reglas de dominio para liquidación
         order.liquidate(
             current_horometer=machine.current_horometer,
+            work_performed=work_performed,
         )
 
         # Realizar transacciones ACID sobre inventario y costos históricos
@@ -109,4 +134,3 @@ class MaintenanceDomainService(BaseDomainService):
         await self._machine_repo.save(machine)
         await self._repo.save(order)
         return order
-

@@ -26,6 +26,7 @@ import {
   UsersIcon,
   SunIcon,
   MoonIcon,
+  TruckIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -52,14 +53,25 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { user, roleLabel, isAdmin, isSupervisor, isLoading } = useAuth();
+  const {
+    user,
+    roleLabel,
+    username,
+    isWarehouse,
+    canViewInventory,
+    canViewReports,
+    canViewSolvencies,
+    canViewAudit,
+    canManageUsers,
+    isLoading,
+  } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   // -----------------------------------------------------------------
   // Hook de Temas Nativo de HeroUI v3
   // -----------------------------------------------------------------
-  const { resolvedTheme, setTheme, theme } = useTheme("system");
+  const { resolvedTheme, setTheme } = useTheme("system");
   const isDark = resolvedTheme === "dark";
 
   const toggleTheme = () => {
@@ -81,6 +93,8 @@ function AuthenticatedLayout() {
     }
   };
 
+  // Navegación por capacidades, no por rol suelto: así el menú no se
+  // desincroniza de los permisos que aplica el backend.
   const navigationItems = [
     {
       to: "/dashboard",
@@ -92,37 +106,46 @@ function AuthenticatedLayout() {
       to: "/maquinaria",
       label: "Maquinaria",
       icon: CpuIcon,
-      visible: true,
+      // Almacén no gestiona activos: solo inventario y despacho.
+      visible: !isWarehouse,
     },
     {
       to: "/mantenimiento",
       label: "Mantenimiento",
       icon: WrenchIcon,
-      visible: true,
+      visible: !isWarehouse,
     },
     {
       to: "/repuestos",
       label: "Repuestos",
       icon: PackageIcon,
-      visible: isAdmin || isSupervisor,
+      // Almacén visualiza el stock global (spec 2.3), aunque no pueda editarlo.
+      visible: canViewInventory,
+    },
+    {
+      to: "/almacen",
+      label: "Despacho",
+      icon: TruckIcon,
+      // Bandeja de Solvencias de Repuestos por entregar (spec 2.3 / 3.3).
+      visible: canViewSolvencies,
     },
     {
       to: "/reportes",
       label: "Reportes",
       icon: BarChart3Icon,
-      visible: isAdmin || isSupervisor,
+      visible: canViewReports,
     },
     {
       to: "/auditoria",
       label: "Auditoría",
       icon: ShieldAlertIcon,
-      visible: isAdmin,
+      visible: canViewAudit,
     },
     {
       to: "/usuarios",
       label: "Usuarios",
       icon: UsersIcon,
-      visible: isAdmin,
+      visible: canManageUsers,
     },
   ];
 
@@ -211,15 +234,32 @@ function AuthenticatedLayout() {
                     {user?.name?.[0]?.toUpperCase() || <UserIcon className="size-4" />}
                   </div>
                   <div className="hidden sm:block">
-                    <p className="text-xs font-bold text-foreground truncate max-w-[120px]">{user?.name}</p>
-                    <p className="text-[10px] text-muted uppercase tracking-wider font-semibold">{roleLabel || "Mecánico"}</p>
+                    <p className="text-xs font-bold text-foreground truncate max-w-[140px]">
+                      {user?.name}
+                    </p>
+                    {/* spec 1: el badge muestra la etiqueta del rol en español
+                        ("Planificador"), nunca el identificador interno. */}
+                    <p className="text-[10px] text-muted tracking-wider font-semibold truncate max-w-[140px]">
+                      {roleLabel ?? "Mecánico"}
+                      {username ? ` · ${username}` : ""}
+                    </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-overlay border border-border text-foreground p-2 rounded-2xl shadow-xl">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-muted uppercase">
-                    Mi Perfil
+                  <DropdownMenuLabel className="px-3 py-2">
+                    <span className="block text-xs font-bold text-foreground truncate">
+                      {user?.name || "Mi Perfil"}
+                    </span>
+                    <span className="block text-[10px] font-semibold text-accent">
+                      {roleLabel ?? "Mecánico"}
+                    </span>
+                    {username && (
+                      <span className="block font-mono text-[10px] text-muted truncate">
+                        @{username}
+                      </span>
+                    )}
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator className="bg-border" />

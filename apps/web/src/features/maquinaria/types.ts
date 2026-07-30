@@ -57,3 +57,70 @@ export interface ChangeMachineStatusCommand {
   status: MachineStatus;
   performed_by?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Estado de la flota en porcentajes (spec 4.3)
+// ---------------------------------------------------------------------------
+export interface FleetStatusSlice {
+  status: MachineStatus | string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export interface FleetStatusResponse {
+  total_machines: number;
+  slices: FleetStatusSlice[];
+}
+
+// ---------------------------------------------------------------------------
+// Importación masiva de maquinaria (spec 4.4)
+// ---------------------------------------------------------------------------
+export interface MachineImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  message: string;
+  errors: string[];
+}
+
+/** Formatos de exportación admitidos por el backend. */
+export type MachineExportFormat = "xlsx" | "csv" | "pdf";
+
+// ---------------------------------------------------------------------------
+// Planes de mantenimiento preventivo por componente / uso (spec 5.2)
+// ---------------------------------------------------------------------------
+export type MaintenancePlanBasis = "USO" | "TIEMPO";
+
+export interface MaintenancePlanResponse {
+  id: string;
+  machine_id: string;
+  machine_code?: string | null;
+  spare_part_id?: string | null;
+  spare_part_name?: string | null;
+  component_name: string;
+  basis: MaintenancePlanBasis;
+  interval_value: number;
+  last_service_value: number;
+  warning_threshold: number;
+  notes?: string | null;
+  target_value: number;
+  current_value: number;
+  remaining: number;
+  is_due: boolean;
+  is_overdue: boolean;
+  horometer_unit?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateMaintenancePlanCommand {
+  machine_id: string;
+  component_name: string;
+  interval_value: number;
+  basis?: MaintenancePlanBasis;
+  spare_part_id?: string | null;
+  last_service_value?: number | null;
+  warning_threshold?: number;
+  notes?: string | null;
+}

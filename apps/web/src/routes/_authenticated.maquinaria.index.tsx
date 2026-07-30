@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMachines } from "@/features/maquinaria/hooks/use-machines";
+import {
+  useDownloadMachineTemplate,
+  useExportMachines,
+  useImportMachines,
+  useMachines,
+} from "@/features/maquinaria/hooks/use-machines";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import MachineCard from "@/features/maquinaria/components/machine-card";
 import { Button } from "@mantainer-system/ui/components/button";
@@ -8,25 +13,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import { Modal } from "@mantainer-system/ui/components/modal";
 import MachineForm from "@/features/maquinaria/components/machine-form";
-import { PlusIcon, SearchIcon, CpuIcon } from "lucide-react";
-import { useState } from "react";
+import {
+  PlusIcon,
+  SearchIcon,
+  CpuIcon,
+  DownloadIcon,
+  UploadIcon,
+  FileSpreadsheetIcon,
+} from "lucide-react";
+import { useRef, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/maquinaria/")({
   component: MaquinariaIndexComponent,
 });
 
 function MaquinariaIndexComponent() {
-  const { isAdmin, isSupervisor } = useAuth();
+  const { canManageMachines, canImportMachines } = useAuth();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: machines = [], isLoading } = useMachines({
     status,
     search,
   });
 
-  const canCreate = isAdmin || isSupervisor;
+  // Importación / exportación del catálogo (spec 4.4)
+  const exportMachines = useExportMachines();
+  const downloadTemplate = useDownloadMachineTemplate();
+  const importMachines = useImportMachines();
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    importMachines.mutate(file, {
+      // Se limpia el input para poder volver a subir el mismo archivo tras corregirlo.
+      onSettled: () => {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      },
+    });
+  };
+
+  const canCreate = canManageMachines;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -42,15 +71,71 @@ function MaquinariaIndexComponent() {
           </p>
         </div>
 
-        {canCreate && (
-          <Button
-            onClick={() => setIsCreateOpen(true)}
-            className="rounded-xl bg-accent hover:bg-accent/80 font-semibold text-accent-foreground flex items-center gap-1.5 shadow-md shadow-accent/10 h-8 px-4"
-          >
-            <PlusIcon className="size-4" />
-            Registrar Maquinaria
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* spec 4.4: importación / exportación del catálogo, exclusiva del
+              Planificador. La plantilla y la exportación comparten columnas, de
+              modo que se puede exportar, editar en Excel y volver a subir. */}
+          {canImportMachines && (
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImport}
+                accept=".xlsx,.xlsm,.csv"
+                className="hidden"
+              />
+              {/* El Button compartido no admite `title`: el tooltip nativo va en el envoltorio. */}
+              <span title="Descarga una plantilla Excel con ejemplos e instrucciones">
+                <Button
+                  variant="outline"
+                  onClick={() => downloadTemplate.mutate()}
+                  disabled={downloadTemplate.isPending}
+                  className="rounded-xl border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 h-8 px-4"
+                >
+                  <FileSpreadsheetIcon className="size-4" />
+                  Plantilla
+                </Button>
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importMachines.isPending}
+                className="rounded-xl border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 h-8 px-4"
+              >
+                <UploadIcon className="size-4" />
+                {importMachines.isPending ? "Importando..." : "Importar"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => exportMachines.mutate("xlsx")}
+                disabled={exportMachines.isPending}
+                className="rounded-xl border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 h-8 px-4"
+              >
+                <DownloadIcon className="size-4" />
+                Excel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => exportMachines.mutate("pdf")}
+                disabled={exportMachines.isPending}
+                className="rounded-xl border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 h-8 px-4"
+              >
+                <DownloadIcon className="size-4" />
+                PDF
+              </Button>
+            </>
+          )}
+
+          {canCreate && (
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="rounded-xl bg-accent hover:bg-accent/80 font-semibold text-accent-foreground flex items-center gap-1.5 shadow-md shadow-accent/10 h-8 px-4"
+            >
+              <PlusIcon className="size-4" />
+              Registrar Maquinaria
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Controles de Búsqueda y Filtrado */}
@@ -103,7 +188,7 @@ function MaquinariaIndexComponent() {
             <MachineCard
               key={machine.id}
               machine={machine}
-              canEdit={isAdmin || isSupervisor}
+              canEdit={canManageMachines}
             />
           ))}
         </div>

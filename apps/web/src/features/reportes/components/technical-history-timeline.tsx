@@ -2,17 +2,24 @@ import { Badge } from "@mantainer-system/ui/components/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@mantainer-system/ui/components/card";
 import { WrenchIcon, CalendarIcon, CoinsIcon, GaugeIcon, ClipboardListIcon } from "lucide-react";
 import type { MaintenanceOrderResponse } from "@/features/mantenimiento/types";
+import {
+  formatCurrency,
+  orderSpareParts,
+  orderSparePartsTotal,
+  sparePartQuantity,
+  sparePartUnitCost,
+} from "@/features/mantenimiento/utils/order-costs";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
 interface TechnicalHistoryTimelineProps {
-  orders: MaintenanceOrderResponse[];
+  orders: MaintenanceOrderResponse[] | null | undefined;
 }
 
 export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTimelineProps) {
-  const { isAdmin, isSupervisor } = useAuth();
-  const canSeeFinancials = isAdmin || isSupervisor;
-  const liquidatedOrders = orders
-    .filter((order) => order.status === "LIQUIDADO")
+  const { isPlanner, isSupervisor } = useAuth();
+  const canSeeFinancials = isPlanner || isSupervisor;
+  const liquidatedOrders = (Array.isArray(orders) ? orders : [])
+    .filter((order) => order?.status === "LIQUIDADO")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   if (liquidatedOrders.length === 0) {
@@ -28,10 +35,8 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
   return (
     <div className="relative border-l border-border ml-4 md:ml-6 pl-6 md:pl-8 space-y-8 py-2">
       {liquidatedOrders.map((order) => {
-        const orderPartsCost = order.spare_parts.reduce(
-          (acc, item) => acc + item.quantity * item.unit_cost_at_time,
-          0
-        );
+        const parts = orderSpareParts(order);
+        const orderPartsCost = orderSparePartsTotal(order);
 
         return (
           <div key={order.id} className="relative group">
@@ -61,7 +66,7 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                 {/* Repuestos consumidos */}
                 <div>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Repuestos Reemplazados</p>
-                  {order.spare_parts.length === 0 ? (
+                  {parts.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic">No se consumieron repuestos en esta intervención.</p>
                   ) : (
                     <div className="overflow-x-auto rounded-xl border border-border bg-background/80">
@@ -80,19 +85,23 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-850/50">
-                          {order.spare_parts.map((item) => (
-                            <tr key={item.id} className="text-foreground/80">
-                              <td className="px-3 py-2 font-mono font-bold text-indigo-400">{item.spare_part?.code}</td>
-                              <td className="px-3 py-2 font-semibold text-foreground">{item.spare_part?.name}</td>
-                              <td className="px-3 py-2 text-right font-mono text-foreground/80">{item.quantity}</td>
-                              {canSeeFinancials && (
-                                <>
-                                  <td className="px-3 py-2 text-right font-mono text-muted-foreground">${item.unit_cost_at_time.toFixed(2)}</td>
-                                  <td className="px-3 py-2 text-right font-mono font-bold text-indigo-300">${(item.quantity * item.unit_cost_at_time).toFixed(2)}</td>
-                                </>
-                              )}
-                            </tr>
-                          ))}
+                          {parts.map((item, index) => {
+                            const itemQuantity = sparePartQuantity(item);
+                            const unitCost = sparePartUnitCost(item).value;
+                            return (
+                              <tr key={item.id ?? `${item.spare_part_id}-${index}`} className="text-foreground/80">
+                                <td className="px-3 py-2 font-mono font-bold text-indigo-400">{item.spare_part?.code ?? "—"}</td>
+                                <td className="px-3 py-2 font-semibold text-foreground">{item.spare_part?.name ?? "Repuesto Histórico"}</td>
+                                <td className="px-3 py-2 text-right font-mono text-foreground/80">{itemQuantity}</td>
+                                {canSeeFinancials && (
+                                  <>
+                                    <td className="px-3 py-2 text-right font-mono text-muted-foreground">{formatCurrency(unitCost)}</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-indigo-300">{formatCurrency(itemQuantity * unitCost)}</td>
+                                  </>
+                                )}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -106,7 +115,7 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                       <CoinsIcon className="size-4 text-indigo-400 animate-pulse" />
                       <div>
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Costo Financiero Asociado</p>
-                        <p className="text-sm font-bold font-mono text-indigo-300">${orderPartsCost.toFixed(2)}</p>
+                        <p className="text-sm font-bold font-mono text-indigo-300">{formatCurrency(orderPartsCost)}</p>
                       </div>
                     </div>
                   ) : (

@@ -7,7 +7,7 @@ import { Modal } from "@mantainer-system/ui/components/modal";
 import { TextField, NumberField, FieldError, Input, Label } from "@heroui/react";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
-import { authClient } from "@/lib/auth-client";
+import { apiClient, downloadFile } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   PackageIcon,
@@ -15,6 +15,7 @@ import {
   SearchIcon,
   DownloadIcon,
   UploadIcon,
+  EyeIcon,
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -36,7 +37,9 @@ const sparePartSchema = z.object({
 });
 
 function RepuestosComponent() {
-  const { isAdmin, isSupervisor } = useAuth();
+  // spec 2.1: SOLO el Planificador añade o edita artículos del inventario.
+  // Almacén puede visualizar el stock global (spec 2.3) pero no modificarlo.
+  const { canManageInventory, canViewInventory, isWarehouse } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -44,7 +47,9 @@ function RepuestosComponent() {
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: parts = [], isLoading } = useSpareParts(search);
+  const { data: parts = [], isLoading } = useSpareParts(search, {
+    enabled: canViewInventory,
+  });
 
   // Mutación
   const createPartMutation = useCreateSparePart();
@@ -78,74 +83,47 @@ function RepuestosComponent() {
     },
   });
 
-  const canEdit = isAdmin || isSupervisor;
+  const canEdit = canManageInventory;
 
-  // Lógica de exportación de CSV (descarga de archivo)
-  const handleExportCSV = async () => {
+  /**
+   * Exporta el catálogo. Se delega en `downloadFile`, que inyecta el JWT y
+   * respeta el nombre de archivo que envía el servidor (antes se duplicaba aquí
+   * la URL base y la lógica del token).
+   */
+  const handleExport = async (format: "xlsx" | "csv" | "pdf") => {
     try {
-      const tokenResult = await authClient.token();
-      const token = tokenResult?.data?.token;
-
-      const headers: HeadersInit = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch("https://sgmm.indroic.dev/api/inventory/export", {
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error("Error en la descarga del reporte CSV");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `reporte_inventario_${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("CSV exportado exitosamente");
+      await downloadFile("/inventory/export", { params: { format } });
+      toast.success(`Inventario exportado en ${format.toUpperCase()}`);
     } catch (error: any) {
       toast.error(error?.message || "Error al exportar inventario");
     }
   };
 
-  // Lógica de importación de CSV
-  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  /** Importación masiva desde la plantilla Excel o un CSV equivalente. */
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setImporting(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const tokenResult = await authClient.token();
-      const token = tokenResult?.data?.token;
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await apiClient.postForm<{
+        message?: string;
+        errors?: string[];
+      }>("/inventory/import", formData);
 
-      const headers: HeadersInit = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      toast.success(result?.message || "Carga masiva de repuestos completada");
+      const errors = Array.isArray(result?.errors) ? result.errors : [];
+      if (errors.length > 0) {
+        toast.warning(
+          `${errors.length} fila(s) con errores: ${errors.slice(0, 3).join(" · ")}` +
+            (errors.length > 3 ? " …" : ""),
+          { duration: 10000 },
+        );
       }
-
-      const response = await fetch("https://sgmm.indroic.dev/api/inventory/import", {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result?.detail || "Error al importar el archivo CSV");
-      }
-
-      toast.success(result.message || `Carga masiva completada: ${result.count} repuestos registrados.`);
       queryClient.invalidateQueries({ queryKey: ["spare-parts"] });
+      queryClient.invalidateQueries({ queryKey: ["alerts"] });
     } catch (error: any) {
       toast.error(error?.message || "Error al importar inventario");
     } finally {
@@ -170,15 +148,15 @@ function RepuestosComponent() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Botones de Importación/Exportación CSV exclusivas para administradores */}
-          {isAdmin && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Importación / exportación exclusivas del Planificador (spec 2.1). */}
+          {canManageInventory && (
             <>
               <input
                 type="file"
                 ref={fileInputRef}
-                onChange={handleImportCSV}
-                accept=".csv"
+                onChange={handleImport}
+                accept=".xlsx,.xlsm,.csv"
                 className="hidden"
               />
               <Button
@@ -188,16 +166,25 @@ function RepuestosComponent() {
                 className="rounded-xl px-4 border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 shadow-md h-8"
               >
                 <UploadIcon className="size-4" />
-                {importing ? "Importando..." : "Importar CSV"}
+                {importing ? "Importando..." : "Importar"}
               </Button>
 
               <Button
                 variant="outline"
-                onClick={handleExportCSV}
+                onClick={() => handleExport("xlsx")}
                 className="rounded-xl px-4 border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 shadow-md h-8"
               >
                 <DownloadIcon className="size-4" />
-                Exportar CSV
+                Excel
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => handleExport("pdf")}
+                className="rounded-xl px-4 border-border text-foreground hover:bg-default font-semibold flex items-center gap-1.5 shadow-md h-8"
+              >
+                <DownloadIcon className="size-4" />
+                PDF
               </Button>
             </>
           )}
@@ -213,6 +200,18 @@ function RepuestosComponent() {
           )}
         </div>
       </div>
+
+      {/* Almacén consulta el stock global pero no lo modifica (spec 2.3). */}
+      {isWarehouse && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-muted">
+          <EyeIcon className="size-4 shrink-0 text-accent mt-0.5" />
+          <span>
+            Vista de <strong className="text-foreground">solo consulta</strong>: el registro y la
+            edición de artículos corresponden al Planificador. Las piezas que debe entregar están
+            en la bandeja de <strong className="text-foreground">Despacho</strong>.
+          </span>
+        </div>
+      )}
 
       {/* Control de Búsqueda */}
       <div className="relative p-4 rounded-2xl bg-surface/40 border border-border backdrop-blur-md">

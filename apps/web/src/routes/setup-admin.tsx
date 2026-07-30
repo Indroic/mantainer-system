@@ -9,8 +9,8 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
-// Mismo origen que la web: /create-admin se alcanza vía proxy inverso (nginx).
-const AUTH_URL = "https://sgmm.indroic.dev";
+// Mismo origen que la web: /create-planner se alcanza vía proxy inverso (nginx).
+const AUTH_URL = "http://localhost:80";
 
 export const Route = createFileRoute("/setup-admin")({
   component: SetupAdminComponent,
@@ -23,19 +23,22 @@ function SetupAdminComponent() {
     defaultValues: {
       creation_key: "",
       name: "",
+      username: "",
       email: "",
       password: "",
     },
     onSubmit: async ({ value }) => {
-      // 1. Crear el usuario Administrador en Better Auth (gateado por la clave).
+      // 1. Crear el usuario Planificador en Better Auth (gateado por la clave).
       let res: Response;
       try {
-        res = await fetch(`${AUTH_URL}/create-admin`, {
+        res = await fetch(`${AUTH_URL}/create-planner`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             creation_key: value.creation_key,
             name: value.name,
+            // spec 6.1: el acceso se hará con este nombre de usuario.
+            username: value.username.trim(),
             email: value.email,
             password: value.password,
           }),
@@ -51,28 +54,37 @@ function SetupAdminComponent() {
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}) as { error?: string });
-        toast.error(data.error || "No se pudo crear el administrador");
+        toast.error(data.error || "No se pudo crear el Planificador");
         return;
       }
 
-      // 2. Iniciar sesión para establecer la sesión en el navegador.
-      const { error: signInError } = await authClient.signIn.email({
-        email: value.email,
+      // 2. Iniciar sesión para establecer la sesión en el navegador. Se usa el
+      //    nombre de usuario, que es la credencial de acceso (spec 6.1).
+      const { error: signInError } = await authClient.signIn.username({
+        username: value.username.trim(),
         password: value.password,
       });
       if (signInError) {
-        toast.success("Administrador creado. Inicia sesión.");
+        toast.success("Planificador creado. Inicia sesión.");
         navigate({ to: "/login" });
         return;
       }
 
-      toast.success("Administrador creado correctamente");
+      toast.success("Planificador creado correctamente");
       navigate({ to: "/dashboard" });
     },
     validators: {
       onSubmit: z.object({
         creation_key: z.string().min(1, "La clave de creación es obligatoria"),
         name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+        username: z
+          .string()
+          .min(3, "El nombre de usuario debe tener al menos 3 caracteres")
+          .max(30, "El nombre de usuario no puede exceder 30 caracteres")
+          .regex(
+            /^[a-zA-Z0-9_.]+$/,
+            "Solo se permiten letras, números, punto y guion bajo",
+          ),
         email: z.email("Correo electrónico inválido"),
         password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
       }),
@@ -90,9 +102,9 @@ function SetupAdminComponent() {
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-600/20 p-3">
             <ShieldCheckIcon className="size-7 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Crear administrador</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Crear Planificador</h1>
           <p className="text-sm text-slate-400">
-            Crea una cuenta con rol <span className="font-semibold text-emerald-400">Administrador</span>.
+            Crea una cuenta con rol <span className="font-semibold text-emerald-400">Planificador</span>.
             Necesitas la <span className="font-semibold text-slate-200">clave de creación</span> del sistema.
           </p>
         </div>
@@ -138,6 +150,33 @@ function SetupAdminComponent() {
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
+                {field.state.meta.errors.map((error) => (
+                  <p key={error?.message} className="text-sm text-rose-400">
+                    {error?.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </form.Field>
+
+          <form.Field name="username">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor={field.name}>Nombre de usuario</Label>
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  placeholder="jmorales1"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <p className="text-xs text-slate-500">
+                  Es la credencial con la que iniciará sesión.
+                </p>
                 {field.state.meta.errors.map((error) => (
                   <p key={error?.message} className="text-sm text-rose-400">
                     {error?.message}
@@ -198,7 +237,7 @@ function SetupAdminComponent() {
                 className="w-full bg-emerald-600 hover:bg-emerald-500"
                 disabled={!canSubmit || isSubmitting}
               >
-                {isSubmitting ? "Creando administrador..." : "Crear administrador"}
+                {isSubmitting ? "Creando Planificador..." : "Crear Planificador"}
               </Button>
             )}
           </form.Subscribe>

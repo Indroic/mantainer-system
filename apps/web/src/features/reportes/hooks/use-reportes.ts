@@ -1,6 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
-import type { AuditLogResponse, CostReportResponse } from "../types";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiClient, downloadFile } from "@/lib/api-client";
+import { orderSparePartsTotal } from "@/features/mantenimiento/utils/order-costs";
+import { toast } from "sonner";
+import type {
+  AnalyticsFilters,
+  AnalyticsReportResponse,
+  AuditLogResponse,
+  CostReportResponse,
+} from "../types";
 
 export function useAuditLogs(filters?: { entity_name?: string; action?: string }) {
   return useQuery({
@@ -40,10 +47,7 @@ export function useCostReport() {
           const mBrand = order.machine?.brand || "Desconocido";
           const mModel = order.machine?.model || "Desconocido";
 
-          const orderPartsCost = (order.spare_parts || []).reduce(
-            (acc: number, item: any) => acc + item.quantity * item.unit_cost_at_time,
-            0
-          );
+          const orderPartsCost = orderSparePartsTotal(order);
 
           totalCost += orderPartsCost;
 
@@ -70,5 +74,80 @@ export function useCostReport() {
       }
     },
     staleTime: 30 * 1000,
+  });
+}
+
+// ===========================================================================
+// Analítica avanzada (spec 4.2)
+// ===========================================================================
+
+/**
+ * Traduce los filtros de la UI al cuerpo que espera el backend.
+ *
+ * Se centraliza para que la consulta y la exportación pidan EXACTAMENTE el mismo
+ * recorte de datos: si divergieran, el PDF no coincidiría con la pantalla.
+ */
+function toAnalyticsBody(filters: AnalyticsFilters) {
+  return {
+    period: filters.period,
+    scope: filters.scope,
+    // El backend exige `machine_id` cuando el alcance es INDIVIDUAL y lo ignora
+    // cuando es GENERAL.
+    machine_id: filters.scope === "INDIVIDUAL" ? filters.machine_id || null : null,
+    failure_category: filters.failure_category || null,
+    reference_date: filters.reference_date || null,
+    start_date: filters.start_date || null,
+    end_date: filters.end_date || null,
+    limit: filters.limit ?? 10,
+  };
+}
+
+/** Mismos filtros como query params, para los endpoints de descarga (GET). */
+function toAnalyticsParams(filters: AnalyticsFilters): Record<string, string> {
+  const body = toAnalyticsBody(filters);
+  const params: Record<string, string> = {};
+  Object.entries(body).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== "") {
+      params[key] = String(value);
+    }
+  });
+  return params;
+}
+
+export function useAnalyticsReport(filters: AnalyticsFilters) {
+  // Un reporte Individual sin máquina seleccionada no es consultable: se espera
+  // a que el usuario elija el activo en lugar de provocar un 400.
+  const isReady = filters.scope !== "INDIVIDUAL" || !!filters.machine_id;
+
+  return useQuery({
+    queryKey: ["analytics-report", filters],
+    queryFn: async () => {
+      return await apiClient.post<AnalyticsReportResponse>(
+        "/reports/analytics",
+        toAnalyticsBody(filters),
+      );
+    },
+    enabled: isReady,
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Descarga el reporte analítico en PDF o Excel (spec 4.4). */
+export function useExportAnalyticsReport() {
+  return useMutation({
+    mutationFn: async ({
+      filters,
+      format,
+    }: {
+      filters: AnalyticsFilters;
+      format: "pdf" | "xlsx";
+    }) => {
+      await downloadFile("/reports/analytics/export", {
+        params: { ...toAnalyticsParams(filters), format },
+      });
+    },
+    onSuccess: () => toast.success("Reporte exportado con éxito"),
+    onError: (error: any) =>
+      toast.error(error?.message || "No se pudo exportar el reporte"),
   });
 }

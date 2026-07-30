@@ -18,6 +18,7 @@ import { Route as AuthenticatedRepuestosRouteImport } from './routes/_authentica
 import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated.reportes'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated.auditoria'
+import { Route as AuthenticatedAlmacenRouteImport } from './routes/_authenticated.almacen'
 import { Route as AuthenticatedMaquinariaIndexRouteImport } from './routes/_authenticated.maquinaria.index'
 import { Route as AuthenticatedMantenimientoIndexRouteImport } from './routes/_authenticated.mantenimiento.index'
 import { Route as AuthenticatedMaquinariaNuevaRouteImport } from './routes/_authenticated.maquinaria.nueva'
@@ -68,6 +69,11 @@ const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
   path: '/auditoria',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAlmacenRoute = AuthenticatedAlmacenRouteImport.update({
+  id: '/almacen',
+  path: '/almacen',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedMaquinariaIndexRoute =
   AuthenticatedMaquinariaIndexRouteImport.update({
     id: '/maquinaria/',
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup-admin': typeof SetupAdminRoute
+  '/almacen': typeof AuthenticatedAlmacenRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/reportes': typeof AuthenticatedReportesRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup-admin': typeof SetupAdminRoute
+  '/almacen': typeof AuthenticatedAlmacenRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/reportes': typeof AuthenticatedReportesRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/setup-admin': typeof SetupAdminRoute
+  '/_authenticated/almacen': typeof AuthenticatedAlmacenRoute
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/reportes': typeof AuthenticatedReportesRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup-admin'
+    | '/almacen'
     | '/auditoria'
     | '/dashboard'
     | '/reportes'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup-admin'
+    | '/almacen'
     | '/auditoria'
     | '/dashboard'
     | '/reportes'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/setup-admin'
+    | '/_authenticated/almacen'
     | '/_authenticated/auditoria'
     | '/_authenticated/dashboard'
     | '/_authenticated/reportes'
@@ -267,6 +279,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/almacen': {
+      id: '/_authenticated/almacen'
+      path: '/almacen'
+      fullPath: '/almacen'
+      preLoaderRoute: typeof AuthenticatedAlmacenRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/maquinaria/': {
       id: '/_authenticated/maquinaria/'
       path: '/maquinaria'
@@ -306,6 +325,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAlmacenRoute: typeof AuthenticatedAlmacenRoute
   AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
@@ -319,6 +339,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAlmacenRoute: AuthenticatedAlmacenRoute,
   AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedReportesRoute: AuthenticatedReportesRoute,

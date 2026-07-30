@@ -40,7 +40,7 @@ class GetCostReportUseCase(UseCase[CostReportFilterCommand, CostReportResponse])
 
             if command.machine_id:
                 parts_stmt = parts_stmt.where(
-                    MaintenanceOrderModel.machine_id == str(command.machine_id)
+                    MaintenanceOrderModel.machine_id == command.machine_id
                 )
             if command.start_date:
                 parts_stmt = parts_stmt.where(
@@ -87,7 +87,7 @@ class GetCostReportUseCase(UseCase[CostReportFilterCommand, CostReportResponse])
 
             if command.machine_id:
                 breakdown_stmt = breakdown_stmt.where(
-                    MaintenanceOrderModel.machine_id == str(command.machine_id)
+                    MaintenanceOrderModel.machine_id == command.machine_id
                 )
             if command.start_date:
                 breakdown_stmt = breakdown_stmt.where(

@@ -3,38 +3,64 @@ import * as schema from "@mantainer-system/db/schema/auth";
 import { betterAuth, APIError } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, jwt } from "better-auth/plugins";
+import { admin, emailOTP, jwt, username } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
 import { adminAc, defaultStatements } from "better-auth/plugins/admin/access";
+
+import {
+  OTP_TTL_MINUTES,
+  passwordResetOtpEmail,
+  sendMail,
+  verificationOtpEmail,
+} from "./mailer";
 
 // =============================================================================
 // Roles del sistema (en inglés y cortos). Se definen con el access control de
 // Better Auth para que el plugin admin los reconozca:
-//   - admin:      administra usuarios/sesiones (hereda permisos de adminAc).
+//   - planner:    Planificador. Antes se llamaba "admin"; administra usuarios y
+//                 sesiones (hereda los permisos de adminAc), gestiona inventario
+//                 y es el único que asigna repuestos a las OT.
 //   - supervisor: rol de negocio, sin permisos de administración de Better Auth.
 //   - mechanic:   rol por defecto, sin permisos de administración.
-// El valor de `role` viaja en el JWT y lo consume el frontend y el backend.
+//   - warehouse:  Almacén. Consulta stock global, recibe alertas de bajo stock y
+//                 despacha las piezas de las Solvencias aprobadas.
+//   - admin:      ALIAS HEREDADO. Se conserva para que las cuentas creadas antes
+//                 del renombrado sigan autenticándose y conservando permisos
+//                 mientras `pnpm db:auth:sync` migra sus filas a "planner".
+// El valor de `role` viaja en el JWT y lo consumen el frontend y el backend.
 // =============================================================================
 const ac = createAccessControl(defaultStatements);
+
+/** Roles con capacidad de administrar usuarios en Better Auth. */
+const ADMIN_ROLES = ["planner", "admin"] as const;
+
 const roles = {
-  admin: ac.newRole(adminAc.statements),
+  planner: ac.newRole(adminAc.statements),
   supervisor: ac.newRole({ user: [], session: [] }),
   mechanic: ac.newRole({ user: [], session: [] }),
+  warehouse: ac.newRole({ user: [], session: [] }),
+  // Alias heredado de "planner" (mismos permisos) para no bloquear cuentas antiguas.
+  admin: ac.newRole(adminAc.statements),
 };
+
+/** ¿El rol dado corresponde al Planificador (incluido el alias heredado)? */
+function isPlannerRole(role: unknown): boolean {
+  return typeof role === "string" && ADMIN_ROLES.includes(role.toLowerCase() as never);
+}
 
 // =============================================================================
 // Configuración HARDCODEADA (no depende de variables de entorno).
 // Topología SINGLE-ORIGIN (todo detrás del proxy inverso de la web):
-//   - web + auth + api:  https://sgmm.indroic.dev
+//   - web + auth + api:  http://localhost:80
 //     · /api/auth/*  -> auth-server (Better Auth)
 //     · /trpc/*      -> auth-server
 //     · /api/*       -> backend FastAPI
 // Al servirse todo desde el mismo dominio, NO hay CORS ni cookies cross-subdominio.
 // =============================================================================
-const BETTER_AUTH_URL = "https://sgmm.indroic.dev";
+const BETTER_AUTH_URL = "http://localhost:80";
 const BETTER_AUTH_SECRET =
   "df8374a2b918fcd3e5719365bc920c8de817f5492bc394a108de92bc8172fa8b";
-const TRUSTED_ORIGINS = ["https://sgmm.indroic.dev"];
+const TRUSTED_ORIGINS = ["http://localhost:80"];
 
 export function createAuth() {
   const db = createDb();
@@ -47,10 +73,14 @@ export function createAuth() {
     }),
     trustedOrigins: TRUSTED_ORIGINS,
     emailAndPassword: {
+      // Sigue habilitado porque es el proveedor de credenciales subyacente: el
+      // plugin `username` valida el nombre de usuario y delega la verificación
+      // de la contraseña en este proveedor. La UI de login usa
+      // `signIn.username`, no `signIn.email` (spec 6.1).
       enabled: true,
       // El registro público está deshabilitado: las cuentas se crean únicamente
-      // vía /create-admin (clave de creación) usando auth.api.createUser, que no
-      // pasa por este guard.
+      // vía /create-planner (clave de creación) usando auth.api.createUser, que
+      // no pasa por este guard.
       disableSignUp: true,
       // Antes dependíamos del default implícito de Better Auth (8). Lo fijamos
       // explícitamente para que quede documentado y no se rompa si la librería
@@ -93,11 +123,12 @@ export function createAuth() {
               });
             }
 
-            // 2. Evitar eliminar o cambiar el rol de cualquier administrador
+            // 2. Evitar eliminar o cambiar el rol de cualquier Planificador
+            //    (incluido el alias heredado "admin").
             const targetUser = await ctx.context.internalAdapter.findUserById(body.userId);
-            if (targetUser && (targetUser as any).role === "admin") {
+            if (targetUser && isPlannerRole((targetUser as any).role)) {
               throw new APIError("BAD_REQUEST", {
-                message: "No está permitido eliminar o alterar el nivel de acceso de un usuario Administrador por motivos de seguridad."
+                message: "No está permitido eliminar o alterar el nivel de acceso de un usuario Planificador por motivos de seguridad."
               });
             }
           }
@@ -149,12 +180,45 @@ export function createAuth() {
     },
     plugins: [
       // El plugin admin añade el campo `role` al usuario (viaja en el JWT) y
-      // habilita la gestión de roles. Roles: "admin" | "supervisor" | "mechanic".
+      // habilita la gestión de roles.
+      // Roles: "planner" | "supervisor" | "mechanic" | "warehouse" (+ "admin" heredado).
       admin({
         ac,
         roles,
-        adminRoles: ["admin"],
+        adminRoles: [...ADMIN_ROLES],
         defaultRole: "mechanic",
+      }),
+      // spec 6.1: el inicio de sesión se realiza con NOMBRE DE USUARIO
+      // (p. ej. "jmorales1") en lugar de correo electrónico. El correo sigue
+      // siendo obligatorio, pero solo para notificaciones y recuperación.
+      username({
+        minUsernameLength: 3,
+        maxUsernameLength: 30,
+        // Solo letras, números, punto y guion bajo: evita ambigüedades al
+        // dictar el usuario en taller.
+        usernameValidator: (value) => /^[a-zA-Z0-9_.]+$/.test(value),
+      }),
+      // spec 6.2: "Olvidé mi contraseña" mediante un código de verificación de
+      // 6 dígitos enviado al correo electrónico de la cuenta.
+      emailOTP({
+        // `otpLength` es 6 por defecto en Better Auth; lo fijamos explícitamente
+        // para que el requisito quede documentado en el código.
+        otpLength: 6,
+        expiresIn: OTP_TTL_MINUTES * 60,
+        // No creamos cuentas desde el flujo de OTP: el alta de usuarios es
+        // siempre responsabilidad del Planificador.
+        disableSignUp: true,
+        allowedAttempts: 3,
+        // Los códigos se guardan cifrados en `verification`, no en claro.
+        storeOTP: "hashed",
+        async sendVerificationOTP({ email, otp, type }) {
+          const template =
+            type === "forget-password"
+              ? passwordResetOtpEmail(otp)
+              : verificationOtpEmail(otp, type);
+          // No se espera el envío para no filtrar por tiempo si la cuenta existe.
+          void sendMail({ to: email, ...template });
+        },
       }),
       jwt(),
     ],

@@ -74,6 +74,24 @@
     --danger: oklch(0.58 0.22 27);
     --danger-foreground: oklch(0.99 0 0);
     --backdrop: rgba(15, 23, 42, 0.4);
+
+    /* ==================================================================
+     * Paleta de ESTADO para gráficos (estado de la flota).
+     *
+     * Pasos validados contra la superficie de tarjeta de cada modo
+     * (claro #ffffff, oscuro #0f172a): banda de luminosidad, piso de croma,
+     * separación bajo daltonismo (protan/deutan/tritan) y contraste.
+     * El modo oscuro NO es un volteo automático: son pasos propios validados
+     * contra su propia superficie.
+     *
+     * El ámbar claro queda por debajo de 3:1 a propósito (es el compromiso
+     * conocido del amarillo de estado): se compensa SIEMPRE con etiqueta
+     * directa visible, leyenda y vista de tabla, de modo que el color nunca
+     * es el único portador del significado.
+     * ================================================================== */
+    --chart-status-good: #0e7a4a;      /* Activas */
+    --chart-status-warning: #d99a06;   /* En Mantenimiento */
+    --chart-status-critical: #9f1239;  /* Fuera de Servicio */
   }
 
   .dark,
@@ -138,6 +156,12 @@
     --danger: oklch(0.70 0.19 22);
     --danger-foreground: oklch(0.99 0 0);
     --backdrop: rgba(2, 6, 23, 0.75);
+
+    /* Paleta de estado para gráficos: pasos propios del modo oscuro, validados
+     * contra la superficie de tarjeta oscura (#0f172a). Los tres superan 3:1. */
+    --chart-status-good: #13ad78;      /* Activas */
+    --chart-status-warning: #ae8018;   /* En Mantenimiento */
+    --chart-status-critical: #ef5a78;  /* Fuera de Servicio */
   }
 }
 

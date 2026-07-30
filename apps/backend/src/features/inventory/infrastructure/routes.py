@@ -1,10 +1,14 @@
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, status
 from fastapi.responses import StreamingResponse
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
-from src.features.auth.dependencies import require_roles
+from src.features.auth.dependencies import (
+    CAN_VIEW_INVENTORY,
+    PLANNER_ONLY,
+    require_roles,
+)
 from src.features.inventory.application.dtos import (
     CreateSparePartCommand,
     SoftDeleteSparePartCommand,
@@ -26,7 +30,6 @@ from src.features.inventory.application.use_cases.update_stock import (
 )
 from src.features.inventory.domain.services import InventoryDomainService
 from src.features.inventory.infrastructure.repositories import SparePartRepository
-from src.features.user.domain.entities import UserRole
 from src.shared.infrastructure.database.db import get_uow
 
 from src.features.user.application.dtos import UserMetadataResponse
@@ -61,7 +64,7 @@ def _map_spare_part(sp) -> SparePartResponse:
 async def create_spare_part(
     command: CreateSparePartCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ) -> SparePartResponse:
     """Registra una nueva pieza o repuesto en el inventario.
 
@@ -81,7 +84,7 @@ async def create_spare_part(
 async def update_stock(
     command: UpdateSparePartStockCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ) -> SparePartResponse:
     """Actualiza manualmente el stock físico disponible de una pieza.
 
@@ -102,7 +105,7 @@ async def update_price(
     spare_part_id: str,
     payload: dict,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ) -> SparePartResponse:
     """Actualiza dinámicamente el precio unitario en USD de un repuesto.
 
@@ -123,47 +126,156 @@ async def update_price(
 
 @router.get(
     "/export",
-    dependencies=[Depends(require_roles([UserRole.ADMINISTRADOR]))],
+    dependencies=[Depends(require_roles(PLANNER_ONLY))],
 )
-async def export_spare_parts_csv(
+async def export_spare_parts(
+    format: str = "xlsx",
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
 ):
-    """Exporta el catálogo completo de repuestos como archivo CSV en español.
+    """Exporta el catálogo completo de repuestos en Excel, CSV o PDF.
 
-    Restringido al rol Administrador.
+    Restringido al Planificador. El Excel sale con encabezados claros,
+    auto-ajuste de columnas y formato de moneda (spec 4.4); el CSV mantiene
+    exactamente las mismas columnas para poder reimportarse.
     """
+    from src.shared.infrastructure.reporting.excel import Column, ExcelWorkbook
+    from src.shared.infrastructure.reporting.pdf import (
+        PdfDocument,
+        format_currency,
+        format_number,
+    )
+
     query_dto = QueryRequestDTO(limit=10000, offset=0, filters=[])
     repo = SparePartRepository(uow)
     use_case = QuerySparePartsUseCase(repo)
     result = await use_case.execute(query_dto)
+    parts = sorted(result.items, key=lambda sp: (sp.code or ""))
 
-    output = io.StringIO()
-    # Columnas en español según lo solicitado
-    fieldnames = [
+    # Columnas en español, compartidas por los tres formatos.
+    headers = [
         "Código", "Nombre", "Número de Parte", "Código Interno",
         "Unidad de Medida", "Stock Actual", "Stock Mínimo",
         "Costo Unitario", "Costo USD",
     ]
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    for sp in result.items:
-        writer.writerow({
-            "Código": sp.code,
-            "Nombre": sp.name,
-            "Número de Parte": getattr(sp, 'part_number', '') or '',
-            "Código Interno": getattr(sp, 'internal_code', '') or '',
-            "Unidad de Medida": getattr(sp, 'unit_of_measure', '') or '',
-            "Stock Actual": sp.stock_current,
-            "Stock Mínimo": sp.stock_minimum,
-            "Costo Unitario": sp.unit_cost,
-            "Costo USD": getattr(sp, 'unit_cost_usd', '') or '',
-        })
 
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=repuestos_sgmm.csv"},
+    def row_of(sp) -> list:
+        return [
+            sp.code,
+            sp.name,
+            getattr(sp, "part_number", None),
+            getattr(sp, "internal_code", None),
+            getattr(sp, "unit_of_measure", None),
+            sp.stock_current,
+            sp.stock_minimum,
+            sp.unit_cost,
+            getattr(sp, "unit_cost_usd", None),
+        ]
+
+    normalized = (format or "xlsx").strip().lower()
+
+    if normalized == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        for sp in parts:
+            writer.writerow(["" if v is None else v for v in row_of(sp)])
+        output.seek(0)
+        return StreamingResponse(
+            # BOM para que Excel abra el CSV respetando los acentos.
+            iter(["﻿" + output.getvalue()]),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=repuestos_sgmm.csv"},
+        )
+
+    if normalized == "pdf":
+        doc = PdfDocument(
+            title="Catálogo de Repuestos",
+            subtitle=f"Inventario de piezas de recambio · {len(parts)} referencia(s).",
+            orientation="landscape",
+        )
+        total_value = sum(
+            float(sp.stock_current or 0) * float(sp.unit_cost or 0.0) for sp in parts
+        )
+        doc.add_metric_cards(
+            [
+                ("Referencias", format_number(len(parts))),
+                ("Valor del inventario", format_currency(total_value)),
+                (
+                    "Bajo mínimo",
+                    format_number(
+                        sum(1 for sp in parts if sp.stock_current < sp.stock_minimum)
+                    ),
+                ),
+            ]
+        )
+        doc.add_table(
+            ["Código", "Nombre", "N.º de Parte", "Unidad", "Stock", "Mínimo", "Costo Unit."],
+            [
+                [
+                    sp.code,
+                    sp.name,
+                    getattr(sp, "part_number", None) or "—",
+                    getattr(sp, "unit_of_measure", None) or "—",
+                    format_number(sp.stock_current),
+                    format_number(sp.stock_minimum),
+                    format_currency(sp.unit_cost),
+                ]
+                for sp in parts
+            ],
+            column_widths=[1.1, 3.0, 1.4, 1.0, 0.8, 0.8, 1.2],
+            align_right=(4, 5, 6),
+            empty_message="No hay repuestos registrados.",
+        )
+        return Response(
+            content=doc.render(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=repuestos_sgmm.pdf"},
+        )
+
+    if normalized not in ("xlsx", "excel"):
+        raise HTTPException(
+            status_code=400, detail="Formato inválido. Use 'xlsx', 'csv' o 'pdf'."
+        )
+
+    wb = ExcelWorkbook()
+    wb.add_sheet(
+        title="Catálogo de Repuestos",
+        sheet_title="Repuestos",
+        subtitle=(
+            f"SGMM Portal · {len(parts)} referencia(s) · "
+            "Este archivo puede editarse y volver a importarse."
+        ),
+        columns=[
+            Column("Código", "text", width=16),
+            Column("Nombre", "text", width=38),
+            Column("Número de Parte", "text", width=20),
+            Column("Código Interno", "text", width=18),
+            Column("Unidad de Medida", "text", width=18),
+            Column("Stock Actual", "integer"),
+            Column("Stock Mínimo", "integer"),
+            Column("Costo Unitario", "currency"),
+            Column("Costo USD", "currency"),
+        ],
+        rows=[row_of(sp) for sp in parts],
+        total_row=[
+            "TOTAL",
+            f"{len(parts)} referencia(s)",
+            None,
+            None,
+            None,
+            sum(int(sp.stock_current or 0) for sp in parts),
+            sum(int(sp.stock_minimum or 0) for sp in parts),
+            sum(float(sp.unit_cost or 0.0) for sp in parts),
+            sum(float(getattr(sp, "unit_cost_usd", None) or 0.0) for sp in parts),
+        ],
+    )
+
+    return Response(
+        content=wb.render(),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={"Content-Disposition": "attachment; filename=repuestos_sgmm.xlsx"},
     )
 
 
@@ -174,16 +286,24 @@ async def export_spare_parts_csv(
 async def import_spare_parts_csv(
     file: UploadFile = File(...),
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ):
-    """Importación masiva de repuestos desde archivo CSV con la plantilla estándar en español.
+    """Importación masiva de repuestos desde Excel (XLSX) o CSV.
 
-    Restringido al rol Administrador. Las columnas esperadas son las mismas que
-    las del archivo de exportación generado por este sistema.
+    Restringido al Planificador. Las columnas esperadas son las mismas que las
+    del archivo de exportación generado por este sistema, por lo que se puede
+    exportar, editar y volver a subir.
     """
+    from src.shared.infrastructure.reporting.excel import read_tabular_upload
+
     content = await file.read()
-    decoded = content.decode("utf-8-sig")  # utf-8-sig maneja el BOM de Excel
-    reader = csv.DictReader(io.StringIO(decoded))
+    try:
+        reader = read_tabular_upload(content, file.filename or "")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se pudo leer el archivo. Use un XLSX o CSV válido. ({exc})",
+        ) from exc
 
     created_count = 0
     errors: list[str] = []
@@ -239,7 +359,7 @@ async def import_spare_parts_csv(
 async def soft_delete_spare_part(
     spare_part_id: str,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles([UserRole.ADMINISTRADOR, UserRole.SUPERVISOR])),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
 ) -> SparePartResponse:
     """Realiza la baja lógica (Soft Delete) de una pieza en el inventario.
 
@@ -263,9 +383,7 @@ async def soft_delete_spare_part(
     response_model=QueryResponseDTO,
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_VIEW_INVENTORY)
         )
     ],
 )
@@ -287,9 +405,7 @@ async def query_spare_parts(
     response_model=list[SparePartResponse],
     dependencies=[
         Depends(
-            require_roles(
-                [UserRole.ADMINISTRADOR, UserRole.SUPERVISOR, UserRole.MECANICO]
-            )
+            require_roles(CAN_VIEW_INVENTORY)
         )
     ],
 )
