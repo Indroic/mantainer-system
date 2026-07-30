@@ -168,6 +168,18 @@ function MaquinariaFichaComponent() {
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{horometerNoun(machine.horometer_unit)} de Alta</p>
                   <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{machine.current_horometer} {horometerUnitAbbr(machine.horometer_unit)}</p>
                 </div>
+                {machine.machine_type_name && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Tipo de Maquinaria</p>
+                    <p className="text-sm font-semibold text-foreground mt-0.5">{machine.machine_type_name}</p>
+                  </div>
+                )}
+                {machine.description && (
+                  <div className="col-span-2">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Descripción</p>
+                    <p className="text-sm text-foreground/80 mt-0.5">{machine.description}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

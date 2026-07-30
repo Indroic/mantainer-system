@@ -31,6 +31,8 @@ export interface MachineResponse {
   horometer_unit?: HorometerUnit;
   description?: string | null;
   location?: string | null;
+  machine_type_id?: string | null;
+  machine_type_name?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -45,6 +47,7 @@ export interface CreateMachineCommand {
   horometer_unit?: HorometerUnit;
   description?: string | null;
   location?: string | null;
+  machine_type_id?: string | null;
   performed_by?: string;
 }
 
@@ -112,6 +115,24 @@ export interface MaintenancePlanResponse {
   horometer_unit?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Tipos de maquinaria
+// ---------------------------------------------------------------------------
+export interface MachineTypeResponse {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  is_active?: boolean;
+}
+
+export interface CreateMachineTypeCommand {
+  name: string;
+  description?: string | null;
+  performed_by?: string;
 }
 
 export interface CreateMaintenancePlanCommand {

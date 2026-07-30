@@ -22,6 +22,7 @@ class MachineDomainService(BaseDomainService):
         horometer_unit: HorometerUnit = HorometerUnit.HORAS,
         description: str | None = None,
         location: str | None = None,
+        machine_type_id: str | None = None,
     ) -> Machine:
         """Crea y registra una nueva máquina."""
         machine = Machine(
@@ -35,6 +36,7 @@ class MachineDomainService(BaseDomainService):
             horometer_unit=horometer_unit,
             description=description,
             location=location,
+            machine_type_id=machine_type_id,
         )
         await self._repo.save(machine)
         return machine

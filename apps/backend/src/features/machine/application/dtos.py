@@ -15,6 +15,7 @@ class CreateMachineCommand(DTO):
     horometer_unit: HorometerUnit = HorometerUnit.HORAS
     description: str | None = None
     location: str | None = None
+    machine_type_id: str | None = None
     performed_by: str | None = None
 
     @field_validator("motor_serial")
@@ -54,6 +55,8 @@ class MachineResponse(DTO):
     horometer_unit: HorometerUnit = HorometerUnit.HORAS
     description: str | None = None
     location: str | None = None
+    machine_type_id: str | None = None
+    machine_type_name: str | None = None
     created_at: datetime
     updated_at: datetime
     is_active: bool

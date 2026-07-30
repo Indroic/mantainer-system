@@ -26,6 +26,7 @@ class Machine(BaseEntity):
     horometer_unit: HorometerUnit = HorometerUnit.HORAS
     description: str | None = None
     location: str | None = None
+    machine_type_id: str | None = None
 
     def update_horometer(self, new_value: float) -> None:
         """Actualiza el horómetro actual de la máquina validando que sea incremental y que la máquina no esté dada de baja."""

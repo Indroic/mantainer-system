@@ -368,6 +368,19 @@ async def get_machines(
     repo = MachineRepository(uow)
     use_case = QueryMachinesUseCase(repo)
     result = await use_case.execute(query_dto)
+
+    async def _machine_type_name(machine_type_id):
+        if not machine_type_id:
+            return None
+        try:
+            from src.features.machine_type.infrastructure.repositories import (
+                MachineTypeRepository,
+            )
+            mt = await MachineTypeRepository(uow).get_by_id(machine_type_id)
+            return mt.name
+        except Exception:
+            return None
+
     return [
         MachineResponse(
             id=m.id,
@@ -381,6 +394,10 @@ async def get_machines(
             horometer_unit=getattr(m, 'horometer_unit', 'Horas'),
             description=getattr(m, 'description', None),
             location=getattr(m, 'location', None),
+            machine_type_id=getattr(m, 'machine_type_id', None),
+            machine_type_name=await _machine_type_name(
+                getattr(m, 'machine_type_id', None)
+            ),
             created_at=m.created_at,
             updated_at=m.updated_at,
             is_active=m.is_active,
@@ -407,6 +424,17 @@ async def get_machine(
     from uuid import UUID
     repo = MachineRepository(uow)
     m = await repo.get_by_id(UUID(machine_id))
+    machine_type_name = None
+    if getattr(m, 'machine_type_id', None):
+        try:
+            from src.features.machine_type.infrastructure.repositories import (
+                MachineTypeRepository,
+            )
+            mt = await MachineTypeRepository(uow).get_by_id(m.machine_type_id)
+            machine_type_name = mt.name
+        except Exception:
+            pass
+
     return MachineResponse(
         id=m.id,
         code=m.code,
@@ -419,6 +447,8 @@ async def get_machine(
         horometer_unit=getattr(m, 'horometer_unit', 'Horas'),
         description=getattr(m, 'description', None),
         location=getattr(m, 'location', None),
+        machine_type_id=getattr(m, 'machine_type_id', None),
+        machine_type_name=machine_type_name,
         created_at=m.created_at,
         updated_at=m.updated_at,
         is_active=m.is_active,

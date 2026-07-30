@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, Integer, String, Text
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Text, Uuid
 from hexcore.infrastructure.repositories.orms.sqlalchemy import BaseModel
 
 
@@ -15,3 +15,8 @@ class MachineModel(BaseModel):
     horometer_unit = Column(String(20), nullable=False, default="Horas")
     description = Column(Text, nullable=True)
     location = Column(String(255), nullable=True)
+    machine_type_id = Column(
+        Uuid,
+        ForeignKey("machine_types.id", ondelete="SET NULL"),
+        nullable=True,
+    )

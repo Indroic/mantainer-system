@@ -17,6 +17,7 @@ class MaintenanceSparePartModel(BaseModel):
         nullable=False,
     )
     quantity_requested = Column(Integer, nullable=False, default=1)
+    quantity_returned = Column(Integer, nullable=False, default=0)
     unit_cost_at_time = Column(Float, nullable=True)
 
     order = relationship("MaintenanceOrderModel", back_populates="spare_parts")

@@ -5,6 +5,7 @@ from src.features.maintenance.domain.entities import (
     FailureCategory,
     MaintenanceOrder,
     MaintenanceSparePart,
+    MaintenanceStatus,
 )
 from src.features.user.domain.entities import UserRole
 
@@ -98,6 +99,45 @@ class MaintenanceDomainService(BaseDomainService):
         await self._repo.save(order)
         return order
 
+    async def return_spare_part(
+        self, order_id: UUID, spare_part_id: UUID, quantity: int
+    ) -> MaintenanceOrder:
+        """Registra la devolución de un repuesto de una orden de trabajo.
+
+        Incrementa el stock del repuesto en el inventario y actualiza el registro
+        de la orden.
+        """
+        order = await self.get_by_id(order_id)
+
+        if order.status == MaintenanceStatus.LIQUIDADO:
+            from src.features.maintenance.domain.exceptions import (
+                InvalidMaintenanceOperationException,
+            )
+            raise InvalidMaintenanceOperationException(
+                "No se pueden devolver repuestos de una orden ya liquidada."
+            )
+
+        # Buscar el repuesto en la orden
+        req = next(
+            (r for r in order.spare_parts if r.spare_part_id == spare_part_id),
+            None,
+        )
+        if req is None:
+            raise ValueError(
+                f"El repuesto (ID: {spare_part_id}) no está asignado a esta orden."
+            )
+
+        # Validar y registrar la devolución en la entidad
+        req.return_spare_part(quantity)
+
+        # Incrementar el stock en el inventario
+        spare_part = await self._spare_part_repo.get_by_id(spare_part_id)
+        spare_part.increase_stock(quantity)
+        await self._spare_part_repo.save(spare_part)
+
+        await self._repo.save(order)
+        return order
+
     async def liquidate_order(
         self, order_id: UUID, work_performed: str | None = None
     ) -> MaintenanceOrder:
@@ -121,8 +161,10 @@ class MaintenanceDomainService(BaseDomainService):
             # 1. Establecemos el costo histórico
             req.set_unit_cost(spare_part.unit_cost)
 
-            # 2. Descontamos el stock (arrojará excepción si queda en negativo)
-            spare_part.decrease_stock(req.quantity_requested)
+            # 2. Descontamos el stock neto (solicitado - devuelto)
+            net_quantity = req.quantity_requested - getattr(req, "quantity_returned", 0)
+            if net_quantity > 0:
+                spare_part.decrease_stock(net_quantity)
 
             # Guardamos el repuesto con stock descontado
             await self._spare_part_repo.save(spare_part)

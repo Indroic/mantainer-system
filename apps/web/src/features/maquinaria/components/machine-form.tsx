@@ -2,9 +2,13 @@ import { useForm } from "@tanstack/react-form";
 import { Button } from "@mantainer-system/ui/components/button";
 import { TextField, NumberField, TextArea, Input, Label, FieldError } from "@heroui/react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
-import { useCreateMachine } from "../hooks/use-machines";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@mantainer-system/ui/components/dialog";
+import { useCreateMachine, useMachineTypes, useCreateMachineType } from "../hooks/use-machines";
 import { useNavigate } from "@tanstack/react-router";
+import { PlusIcon } from "lucide-react";
+import { useState } from "react";
 import z from "zod";
+import { toast } from "sonner";
 
 const machineSchema = z.object({
   code: z.string().min(3, "El código debe tener al menos 3 caracteres"),
@@ -19,6 +23,7 @@ const machineSchema = z.object({
   horometer_unit: z.enum(["Horas", "Kilómetros", "Millas"]),
   description: z.string(),
   location: z.string(),
+  machine_type_id: z.string().nullable(),
 });
 
 interface MachineFormProps {
@@ -29,6 +34,11 @@ interface MachineFormProps {
 export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
   const createMutation = useCreateMachine();
   const navigate = useNavigate();
+  const { data: machineTypes = [], isLoading: typesLoading } = useMachineTypes();
+  const createTypeMutation = useCreateMachineType();
+  const [typeDialogOpen, setTypeDialogOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeDesc, setNewTypeDesc] = useState("");
 
   const form = useForm({
     defaultValues: {
@@ -41,6 +51,7 @@ export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
       horometer_unit: "Horas" as "Horas" | "Kilómetros" | "Millas",
       description: "",
       location: "",
+      machine_type_id: null as string | null,
     },
     onSubmit: async ({ value }) => {
       await createMutation.mutateAsync(
@@ -48,6 +59,7 @@ export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
           ...value,
           description: value.description || undefined,
           location: value.location || undefined,
+          machine_type_id: value.machine_type_id || undefined,
         },
         {
           onSuccess: () => {
@@ -61,6 +73,28 @@ export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
       onChange: machineSchema,
     },
   });
+
+  const handleCreateType = async () => {
+    const name = newTypeName.trim();
+    if (!name || name.length < 2) {
+      toast.error("El nombre del tipo debe tener al menos 2 caracteres");
+      return;
+    }
+    await createTypeMutation.mutateAsync(
+      {
+        name,
+        description: newTypeDesc.trim() || undefined,
+      },
+      {
+        onSuccess: (data) => {
+          form.setFieldValue("machine_type_id", data.id);
+          setTypeDialogOpen(false);
+          setNewTypeName("");
+          setNewTypeDesc("");
+        },
+      }
+    );
+  };
 
   return (
     <form
@@ -190,6 +224,46 @@ export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
               </TextField>
             );
           }}
+        </form.Field>
+
+        {/* Tipo de Maquinaria */}
+        <form.Field name="machine_type_id">
+          {(field) => (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-foreground/85 text-xs font-semibold">
+                Tipo de Maquinaria <span className="text-muted font-normal">(opcional)</span>
+              </Label>
+              <div className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <Select
+                    value={field.state.value ?? "none"}
+                    onValueChange={(val: any) => {
+                      if (val === "__new__") {
+                        setTypeDialogOpen(true);
+                      } else {
+                        field.handleChange(val === "none" ? null : val);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-default/60 border-border rounded-xl text-foreground text-sm h-9">
+                      <SelectValue placeholder={typesLoading ? "Cargando..." : "Seleccionar tipo..."} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-overlay border border-border text-foreground rounded-xl">
+                      <SelectItem value="none">Sin tipo</SelectItem>
+                      {machineTypes.map((mt) => (
+                        <SelectItem key={mt.id} value={mt.id}>
+                          {mt.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__" className="text-accent font-semibold border-t border-border mt-1 pt-1">
+                        + Nuevo Tipo
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
         </form.Field>
 
         {/* Año de Fabricación */}
@@ -350,6 +424,64 @@ export default function MachineForm({ onSuccess, onCancel }: MachineFormProps) {
           Cancelar
         </Button>
       </div>
+
+      {/* Dialog para crear nuevo tipo de maquinaria */}
+      <Dialog open={typeDialogOpen} onOpenChange={setTypeDialogOpen}>
+        <DialogContent className="bg-card border border-border text-foreground p-6 rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+              <PlusIcon className="size-5 text-accent" />
+              Nuevo Tipo de Maquinaria
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <Label htmlFor="newTypeName" className="text-foreground/80 text-xs">
+                Nombre del Tipo
+              </Label>
+              <Input
+                id="newTypeName"
+                type="text"
+                placeholder="Ej. Excavadora, Camión, Retroexcavadora..."
+                value={newTypeName}
+                onChange={(e) => setNewTypeName(e.target.value)}
+                className="bg-background/80 border-border rounded-xl"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="newTypeDesc" className="text-foreground/80 text-xs">
+                Descripción <span className="text-muted font-normal">(opcional)</span>
+              </Label>
+              <TextArea
+                id="newTypeDesc"
+                placeholder="Breve descripción del tipo de maquinaria..."
+                value={newTypeDesc}
+                onChange={(e) => setNewTypeDesc(e.target.value)}
+                rows={2}
+                className="bg-background/80 border-border rounded-xl"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                onClick={handleCreateType}
+                disabled={createTypeMutation.isPending}
+                className="flex-1 rounded-xl bg-accent hover:bg-accent/80 font-semibold"
+              >
+                {createTypeMutation.isPending ? "Creando..." : "Crear Tipo"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTypeDialogOpen(false)}
+                className="flex-1 rounded-xl border-border text-foreground/80 hover:bg-default"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

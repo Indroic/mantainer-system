@@ -5,6 +5,7 @@ import type {
   CreateMaintenanceOrderCommand,
   AddSparePartToOrderCommand,
   LiquidateOrderCommand,
+  ReturnSparePartCommand,
   MechanicResponse,
 } from "../types";
 import { toast } from "sonner";
@@ -131,6 +132,28 @@ export function useAddSparePartToOrder(orderId: string) {
     },
     onError: (error: any) => {
       toast.error(error?.message || "Error al asignar el repuesto");
+    },
+  });
+}
+
+export function useReturnSparePart(orderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (command: ReturnSparePartCommand) => {
+      return await apiClient.post<MaintenanceOrderResponse>(
+        `/maintenance/${orderId}/spare-parts/${command.spare_part_id}/return`,
+        command
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance-orders", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["spare-parts"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("Repuesto devuelto al inventario con éxito");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Error al devolver el repuesto");
     },
   });
 }

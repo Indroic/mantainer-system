@@ -96,6 +96,7 @@ export interface OrderSparePartResponse {
   /** Alias de `quantity_requested`; algunos endpoints no lo rellenan. */
   quantity?: number | null;
   quantity_requested?: number | null;
+  quantity_returned?: number | null;
   /**
    * Costo histórico congelado. Es `null` hasta que la OT se liquida, por lo que
    * NUNCA debe usarse directamente: usar los helpers de `utils/order-costs`.
@@ -136,6 +137,12 @@ export interface CreateMaintenanceOrderCommand {
 }
 
 export interface AddSparePartToOrderCommand {
+  spare_part_id: string;
+  quantity: number;
+  performed_by?: string;
+}
+
+export interface ReturnSparePartCommand {
   spare_part_id: string;
   quantity: number;
   performed_by?: string;

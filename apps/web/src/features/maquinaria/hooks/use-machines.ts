@@ -3,10 +3,12 @@ import { apiClient, downloadFile } from "@/lib/api-client";
 import type {
   MachineResponse,
   CreateMachineCommand,
+  CreateMachineTypeCommand,
   CreateMaintenancePlanCommand,
   FleetStatusResponse,
   MachineExportFormat,
   MachineImportResult,
+  MachineTypeResponse,
   MaintenancePlanResponse,
   UpdateMachineHorometerCommand,
   ChangeMachineStatusCommand,
@@ -188,6 +190,36 @@ export function useImportMachines() {
     },
     onError: (error: any) =>
       toast.error(error?.message || "Error al importar el catálogo de maquinaria"),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tipos de maquinaria
+// ---------------------------------------------------------------------------
+export function useMachineTypes() {
+  return useQuery({
+    queryKey: ["machine-types"],
+    queryFn: async () => {
+      return await apiClient.get<MachineTypeResponse[]>("/machine-types/");
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateMachineType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (command: CreateMachineTypeCommand) => {
+      return await apiClient.post<MachineTypeResponse>("/machine-types/", command);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["machine-types"] });
+      toast.success("Tipo de maquinaria creado con éxito");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Error al crear el tipo de maquinaria");
+    },
   });
 }
 

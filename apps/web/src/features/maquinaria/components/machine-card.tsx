@@ -91,6 +91,18 @@ export default function MachineCard({ machine, canEdit = true }: MachineCardProp
             <p className="text-sm font-bold text-foreground">{machine.manufacture_year}</p>
           </div>
         </div>
+
+        {machine.machine_type_name && (
+          <div className="flex items-center gap-3 text-sm text-foreground">
+            <div className="p-1.5 rounded-lg bg-default/60 text-accent">
+              <CpuIcon className="size-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted font-semibold uppercase">Tipo</p>
+              <p className="text-sm font-bold text-foreground">{machine.machine_type_name}</p>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="flex items-center justify-between border-t border-border pt-4 bg-background/80">

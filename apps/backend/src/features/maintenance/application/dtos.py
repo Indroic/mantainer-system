@@ -30,6 +30,13 @@ class AddSparePartToOrderCommand(DTO):
     performed_by: str | None = None
 
 
+class ReturnSparePartCommand(DTO):
+    order_id: UUID
+    spare_part_id: UUID
+    quantity: int
+    performed_by: str | None = None
+
+
 class ClassifyFailureCommand(DTO):
     """Permite reclasificar la falla de una OT ya registrada (spec 4.1)."""
 
@@ -49,6 +56,7 @@ class MaintenanceSparePartResponse(DTO):
     id: UUID
     spare_part_id: UUID
     quantity_requested: int
+    quantity_returned: int = 0
     #: Alias de ``quantity_requested``; el frontend lo consume como ``quantity``.
     quantity: int | None = None
     #: ``None`` hasta que la OT se liquida y se congela el costo histórico.

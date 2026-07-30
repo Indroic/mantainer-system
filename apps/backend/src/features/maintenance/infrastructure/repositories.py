@@ -43,6 +43,7 @@ class MaintenanceOrderRepository(
                     maintenance_order_id=sp.maintenance_order_id,
                     spare_part_id=sp.spare_part_id,
                     quantity_requested=sp.quantity_requested,
+                    quantity_returned=getattr(sp, "quantity_returned", 0),
                     unit_cost_at_time=sp.unit_cost_at_time,
                     created_at=sp.created_at,
                     updated_at=sp.updated_at,
@@ -63,6 +64,7 @@ class MaintenanceOrderRepository(
                     maintenance_order_id=sp.maintenance_order_id,
                     spare_part_id=sp.spare_part_id,
                     quantity_requested=sp.quantity_requested,
+                    quantity_returned=sp.quantity_returned,
                     unit_cost_at_time=sp.unit_cost_at_time,
                     is_active=sp.is_active,
                 )

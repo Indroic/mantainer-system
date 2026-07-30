@@ -17,9 +17,10 @@ import {
   DownloadIcon,
   FileTextIcon,
   PackageCheckIcon,
+  Undo2Icon,
 } from "lucide-react";
 import { useState } from "react";
-import { useStartOrder, useAddSparePartToOrder, useLiquidateOrder } from "../hooks/use-maintenance";
+import { useStartOrder, useAddSparePartToOrder, useLiquidateOrder, useReturnSparePart } from "../hooks/use-maintenance";
 import { useDispatchSolvency, useDownloadSolvencyPdf } from "../hooks/use-solvencies";
 import { useSpareParts } from "@/features/repuestos/hooks/use-spare-parts";
 import { failureCategoryLabel, type MaintenanceOrderResponse, type SolvencyResponse } from "../types";
@@ -52,6 +53,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
   const startMutation = useStartOrder(order.id);
   const addSparePartMutation = useAddSparePartToOrder(order.id);
   const liquidateMutation = useLiquidateOrder(order.id);
+  const returnSparePartMutation = useReturnSparePart(order.id);
   const downloadSolvency = useDownloadSolvencyPdf();
   const dispatchSolvency = useDispatchSolvency();
 
@@ -525,25 +527,31 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                     <TableHead className="font-semibold text-muted-foreground">Código</TableHead>
                     <TableHead className="font-semibold text-muted-foreground">Descripción</TableHead>
                     <TableHead className="font-semibold text-muted-foreground text-right">Cantidad</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-right">Devuelto</TableHead>
                     {canSeeFinancials && (
                       <>
                         <TableHead className="font-semibold text-muted-foreground text-right">Costo Unit. Hist.</TableHead>
                         <TableHead className="font-semibold text-muted-foreground text-right">Subtotal</TableHead>
                       </>
                     )}
+                    {canAssignSpareParts && order.status !== "LIQUIDADO" && (
+                      <TableHead className="font-semibold text-muted-foreground text-center">Acción</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {assignedParts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canSeeFinancials ? 5 : 3} className="text-center py-8 text-muted-foreground font-medium">
+                      <TableCell colSpan={canSeeFinancials ? (canAssignSpareParts && order.status !== "LIQUIDADO" ? 8 : 7) : (canAssignSpareParts && order.status !== "LIQUIDADO" ? 5 : 4)} className="text-center py-8 text-muted-foreground font-medium">
                         No se han asignado repuestos a esta orden de trabajo.
                       </TableCell>
                     </TableRow>
                   ) : (
                     assignedParts.map((item, index) => {
                       const itemQuantity = sparePartQuantity(item);
+                      const itemReturned = item.quantity_returned ?? 0;
                       const unitCost = sparePartUnitCost(item);
+                      const canReturn = canAssignSpareParts && order.status !== "LIQUIDADO" && itemQuantity > itemReturned;
                       return (
                         <TableRow
                           key={item.id ?? `${item.spare_part_id}-${index}`}
@@ -556,6 +564,13 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                             {item.spare_part?.name || "Repuesto Histórico"}
                           </TableCell>
                           <TableCell className="text-right font-mono text-foreground/80">{itemQuantity}</TableCell>
+                          <TableCell className="text-right font-mono text-foreground/80">
+                            {itemReturned > 0 ? (
+                              <span className="text-emerald-400">{itemReturned}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           {canSeeFinancials && (
                             <>
                               <TableCell className="text-right font-mono text-foreground/80">
@@ -573,6 +588,39 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                                 {formatCurrency(itemQuantity * unitCost.value)}
                               </TableCell>
                             </>
+                          )}
+                          {canAssignSpareParts && order.status !== "LIQUIDADO" && (
+                            <TableCell className="text-center">
+                              {canReturn && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const qty = prompt(
+                                      `Cantidad a devolver de "${item.spare_part?.name || "Repuesto Histórico"}" (máx. ${itemQuantity - itemReturned}):`,
+                                      "1"
+                                    );
+                                    if (qty) {
+                                      const parsed = parseInt(qty, 10);
+                                      if (parsed > 0 && parsed <= itemQuantity - itemReturned) {
+                                        returnSparePartMutation.mutate({
+                                          spare_part_id: item.spare_part_id,
+                                          quantity: parsed,
+                                        });
+                                      } else {
+                                        toast.error(`Cantidad inválida. Debe ser entre 1 y ${itemQuantity - itemReturned}.`);
+                                      }
+                                    }
+                                  }}
+                                  disabled={returnSparePartMutation.isPending}
+                                  className="rounded-lg border-border text-xs h-7 px-2 text-amber-400 hover:text-amber-300 hover:border-amber-500/30 gap-1"
+                                >
+                                  <Undo2Icon className="size-3" />
+                                  Devolver
+                                </Button>
+                              )}
+                            </TableCell>
                           )}
                         </TableRow>
                       );

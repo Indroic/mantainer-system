@@ -56,11 +56,41 @@ class MaintenanceSparePart(BaseEntity):
     maintenance_order_id: UUID
     spare_part_id: UUID
     quantity_requested: int
+    quantity_returned: int = 0
     unit_cost_at_time: float | None = None
 
     def set_unit_cost(self, cost: float) -> None:
         """Guarda el costo histórico unitario del repuesto al momento de uso."""
         self.unit_cost_at_time = cost
+
+    def return_spare_part(self, quantity: int) -> None:
+        """Registra la devolución de un repuesto, incrementando el stock.
+
+        Valida que la cantidad a devolver no supere la cantidad solicitada menos
+        las devoluciones ya registradas.
+        """
+        from src.features.maintenance.domain.exceptions import (
+            SparePartReturnExceedsRequestedException,
+        )
+
+        if quantity <= 0:
+            from src.features.maintenance.domain.exceptions import (
+                InvalidMaintenanceOperationException,
+            )
+            raise InvalidMaintenanceOperationException(
+                "La cantidad a devolver debe ser mayor que cero."
+            )
+
+        available = self.quantity_requested - self.quantity_returned
+        if quantity > available:
+            raise SparePartReturnExceedsRequestedException(
+                self.spare_part_id,
+                quantity_requested=self.quantity_requested,
+                already_returned=self.quantity_returned,
+                attempted_return=quantity,
+            )
+
+        self.quantity_returned += quantity
 
 
 class MaintenanceOrder(BaseEntity):

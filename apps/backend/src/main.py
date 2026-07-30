@@ -5,6 +5,7 @@ from src.features.alerts.infrastructure.routes import router as alerts_router
 from src.features.audit.infrastructure.routes import router as audit_router
 from src.features.inventory.infrastructure.routes import router as inventory_router
 from src.features.machine.infrastructure.routes import router as machines_router
+from src.features.machine_type.infrastructure.routes import router as machine_types_router
 from src.features.maintenance.infrastructure.routes import router as maintenance_router
 from src.features.notifications.infrastructure.routes import router as notifications_router
 from src.features.reports.infrastructure.routes import router as reports_router
@@ -29,6 +30,7 @@ app.add_middleware(
 # Registro de routers de las Slices Verticales
 app.include_router(user_router, prefix="/api")
 app.include_router(machines_router, prefix="/api")
+app.include_router(machine_types_router, prefix="/api")
 app.include_router(inventory_router, prefix="/api")
 app.include_router(maintenance_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
@@ -48,6 +50,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         "SparePartNegativeStockException",
         "InvalidMaintenanceTransitionException",
         "InvalidMaintenanceOperationException",
+        "SparePartReturnExceedsRequestedException",
+        "MachineTypeAlreadyExistsException",
         "UserMetadataAlreadyExistsException",
         "UserMetadataNotFoundException",
         "InvalidSolvencyTransitionException",

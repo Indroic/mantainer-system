@@ -15,6 +15,7 @@ from src.features.maintenance.application.dtos import (
     LiquidateMaintenanceCommand,
     MaintenanceResponse,
     MaintenanceSparePartResponse,
+    ReturnSparePartCommand,
     StartMaintenanceCommand,
 )
 from src.features.maintenance.application.use_cases.add_spare_part import (
@@ -28,6 +29,9 @@ from src.features.maintenance.application.use_cases.liquidate import (
 )
 from src.features.maintenance.application.use_cases.query_orders import (
     QueryMaintenanceOrdersUseCase,
+)
+from src.features.maintenance.application.use_cases.return_spare_part import (
+    ReturnSparePartUseCase,
 )
 from src.features.maintenance.application.use_cases.start_execution import (
     StartMaintenanceUseCase,
@@ -72,6 +76,17 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
     machine_dto = None
     try:
         machine = await machine_repo.get_by_id(order.machine_id)
+        machine_type_name = None
+        if getattr(machine, 'machine_type_id', None):
+            try:
+                from src.features.machine_type.infrastructure.repositories import (
+                    MachineTypeRepository,
+                )
+                mt = await MachineTypeRepository(uow).get_by_id(machine.machine_type_id)
+                machine_type_name = mt.name
+            except Exception:
+                pass
+
         machine_dto = MachineDTOResponse(
             id=machine.id,
             code=machine.code,
@@ -84,6 +99,8 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
             horometer_unit=getattr(machine, 'horometer_unit', 'Horas'),
             description=getattr(machine, 'description', None),
             location=getattr(machine, 'location', None),
+            machine_type_id=getattr(machine, 'machine_type_id', None),
+            machine_type_name=machine_type_name,
             created_at=machine.created_at,
             updated_at=machine.updated_at,
             is_active=machine.is_active,
@@ -133,6 +150,7 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
                 id=sp.id,
                 spare_part_id=sp.spare_part_id,
                 quantity_requested=sp.quantity_requested,
+                quantity_returned=getattr(sp, "quantity_returned", 0),
                 quantity=sp.quantity_requested,
                 unit_cost_at_time=sp.unit_cost_at_time,
                 spare_part=part_dto,
@@ -270,6 +288,7 @@ async def add_spare_part(
         id=res.id,
         spare_part_id=res.spare_part_id,
         quantity_requested=res.quantity_requested,
+        quantity_returned=getattr(res, "quantity_returned", 0),
         quantity=res.quantity_requested,
         unit_cost_at_time=res.unit_cost_at_time,
         spare_part=part_dto,
@@ -446,6 +465,40 @@ async def add_spare_part_path(
     repo = MaintenanceOrderRepository(uow)
     order = await repo.get_by_id(UUID(order_id))
     return await _to_maintenance_response(order, uow)
+
+
+@router.post(
+    "/{order_id}/spare-parts/{spare_part_id}/return",
+    response_model=MaintenanceResponse,
+)
+async def return_spare_part(
+    order_id: str,
+    spare_part_id: str,
+    payload: dict,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+    service: MaintenanceDomainService = Depends(get_maintenance_service),
+    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
+) -> MaintenanceResponse:
+    """Registra la devolución de un repuesto asignado a una OT.
+
+    Incrementa el stock físico del repuesto en el inventario y actualiza el
+    registro de cantidad devuelta. EXCLUSIVO del Planificador.
+    """
+    from uuid import UUID
+
+    try:
+        quantity = int(payload.get("quantity", 1))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("La cantidad a devolver debe ser un número entero.") from exc
+
+    command = ReturnSparePartCommand(
+        order_id=UUID(order_id),
+        spare_part_id=UUID(spare_part_id),
+        quantity=quantity,
+        performed_by=current_user.better_auth_user_id,
+    )
+    use_case = ReturnSparePartUseCase(service, uow)
+    return await use_case.execute(command)
 
 
 @router.post(

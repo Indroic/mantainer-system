@@ -45,6 +45,8 @@ class ChangeMachineStatusUseCase(
             
             await self.uow.commit()
 
+        machine_type_name = await self._resolve_machine_type_name(machine.machine_type_id)
+
         return MachineResponse(
             id=machine.id,
             code=machine.code,
@@ -57,7 +59,21 @@ class ChangeMachineStatusUseCase(
             horometer_unit=machine.horometer_unit,
             description=machine.description,
             location=machine.location,
+            machine_type_id=machine.machine_type_id,
+            machine_type_name=machine_type_name,
             created_at=machine.created_at,
             updated_at=machine.updated_at,
             is_active=machine.is_active,
         )
+
+    async def _resolve_machine_type_name(self, machine_type_id) -> str | None:
+        if not machine_type_id:
+            return None
+        try:
+            from src.features.machine_type.infrastructure.repositories import (
+                MachineTypeRepository,
+            )
+            mt = await MachineTypeRepository(self.uow).get_by_id(machine_type_id)
+            return mt.name
+        except Exception:
+            return None

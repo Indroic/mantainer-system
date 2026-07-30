@@ -21,6 +21,7 @@ class CreateMachineUseCase(UseCase[CreateMachineCommand, MachineResponse]):
                 horometer_unit=command.horometer_unit,
                 description=command.description,
                 location=command.location,
+                machine_type_id=command.machine_type_id,
             )
 
             # Registrar Auditoría Forense Activa
@@ -42,12 +43,26 @@ class CreateMachineUseCase(UseCase[CreateMachineCommand, MachineResponse]):
                     "status": machine.status,
                     "description": machine.description,
                     "location": machine.location,
+                    "machine_type_id": machine.machine_type_id,
                 },
                 performed_by=command.performed_by or "system"
             )
             await audit_repo.save(audit_log)
 
             await self.uow.commit()
+
+        machine_type_name = None
+        if machine.machine_type_id:
+            try:
+                from src.features.machine_type.infrastructure.repositories import (
+                    MachineTypeRepository,
+                )
+                mt = await MachineTypeRepository(self.uow).get_by_id(
+                    machine.machine_type_id
+                )
+                machine_type_name = mt.name
+            except Exception:
+                pass
 
         return MachineResponse(
             id=machine.id,
@@ -61,6 +76,8 @@ class CreateMachineUseCase(UseCase[CreateMachineCommand, MachineResponse]):
             horometer_unit=machine.horometer_unit,
             description=machine.description,
             location=machine.location,
+            machine_type_id=machine.machine_type_id,
+            machine_type_name=machine_type_name,
             created_at=machine.created_at,
             updated_at=machine.updated_at,
             is_active=machine.is_active,
