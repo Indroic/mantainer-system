@@ -100,7 +100,7 @@ async def _to_maintenance_response(order, uow: SqlAlchemyUnitOfWork) -> Maintena
             horometer_unit=getattr(machine, 'horometer_unit', 'Horas'),
             description=getattr(machine, 'description', None),
             location=getattr(machine, 'location', None),
-            machine_type_id=getattr(machine, 'machine_type_id', None),
+            machine_type_id=str(getattr(machine, 'machine_type_id', None) or '') or None,
             machine_type_name=machine_type_name,
             created_at=machine.created_at,
             updated_at=machine.updated_at,

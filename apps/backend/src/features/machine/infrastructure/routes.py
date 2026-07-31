@@ -395,7 +395,7 @@ async def get_machines(
             horometer_unit=getattr(m, 'horometer_unit', 'Horas'),
             description=getattr(m, 'description', None),
             location=getattr(m, 'location', None),
-            machine_type_id=getattr(m, 'machine_type_id', None),
+            machine_type_id=str(getattr(m, 'machine_type_id', None) or '') or None,
             machine_type_name=await _machine_type_name(
                 getattr(m, 'machine_type_id', None)
             ),
@@ -448,7 +448,7 @@ async def get_machine(
         horometer_unit=getattr(m, 'horometer_unit', 'Horas'),
         description=getattr(m, 'description', None),
         location=getattr(m, 'location', None),
-        machine_type_id=getattr(m, 'machine_type_id', None),
+        machine_type_id=str(getattr(m, 'machine_type_id', None) or '') or None,
         machine_type_name=machine_type_name,
         created_at=m.created_at,
         updated_at=m.updated_at,

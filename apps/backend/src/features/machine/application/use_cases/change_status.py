@@ -59,7 +59,7 @@ class ChangeMachineStatusUseCase(
             horometer_unit=machine.horometer_unit,
             description=machine.description,
             location=machine.location,
-            machine_type_id=machine.machine_type_id,
+            machine_type_id=str(machine.machine_type_id) if machine.machine_type_id else None,
             machine_type_name=machine_type_name,
             created_at=machine.created_at,
             updated_at=machine.updated_at,
