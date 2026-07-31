@@ -1,6 +1,6 @@
 import { Badge } from "@mantainer-system/ui/components/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@mantainer-system/ui/components/card";
-import { WrenchIcon, CalendarIcon, CoinsIcon, GaugeIcon, ClipboardListIcon } from "lucide-react";
+import { WrenchIcon, CalendarIcon, CoinsIcon, GaugeIcon, ClipboardListIcon, ClipboardCheckIcon } from "lucide-react";
 import type { MaintenanceOrderResponse } from "@/features/mantenimiento/types";
 import {
   formatCurrency,
@@ -10,6 +10,7 @@ import {
   sparePartUnitCost,
 } from "@/features/mantenimiento/utils/order-costs";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { horometerUnitAbbr } from "@/features/maquinaria/types";
 
 interface TechnicalHistoryTimelineProps {
   orders: MaintenanceOrderResponse[] | null | undefined;
@@ -63,6 +64,19 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                 </Badge>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
+                {/* Comentario / notas del trabajo realizado, capturado al liquidar la ODT (spec 5.1) */}
+                {order.work_performed && (
+                  <div className="space-y-1 bg-background/80 p-3 rounded-xl border border-border">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <ClipboardCheckIcon className="size-3.5 text-emerald-400" />
+                      Trabajo Realizado
+                    </p>
+                    <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-line">
+                      {order.work_performed}
+                    </p>
+                  </div>
+                )}
+
                 {/* Repuestos consumidos */}
                 <div>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Repuestos Reemplazados</p>
@@ -132,7 +146,9 @@ export default function TechnicalHistoryTimeline({ orders }: TechnicalHistoryTim
                       <GaugeIcon className="size-4 text-amber-400" />
                       <div>
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Próximo Servicio Recomendado</p>
-                        <p className="text-sm font-bold font-mono text-amber-400">{order.next_service_horometer} hrs</p>
+                        <p className="text-sm font-bold font-mono text-amber-400">
+                          {order.next_service_horometer} {horometerUnitAbbr(order.machine?.horometer_unit)}
+                        </p>
                       </div>
                     </div>
                   )}

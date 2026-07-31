@@ -4,6 +4,7 @@ from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.dependencies import (
     CAN_CREATE_ORDERS,
     CAN_EXECUTE_ORDERS,
+    CAN_VIEW_MAINTENANCE,
     PLANNER_ONLY,
     require_roles,
 )
@@ -350,7 +351,7 @@ async def query_orders(
     response_model=list[MaintenanceResponse],
     dependencies=[
         Depends(
-            require_roles(CAN_EXECUTE_ORDERS)
+            require_roles(CAN_VIEW_MAINTENANCE)
         )
     ],
 )
@@ -385,7 +386,7 @@ async def get_orders(
     response_model=MaintenanceResponse,
     dependencies=[
         Depends(
-            require_roles(CAN_EXECUTE_ORDERS)
+            require_roles(CAN_VIEW_MAINTENANCE)
         )
     ],
 )

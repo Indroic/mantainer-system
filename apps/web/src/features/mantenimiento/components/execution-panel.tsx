@@ -35,6 +35,7 @@ import type { SparePartResponse } from "@/features/repuestos/types";
 import { toast } from "sonner";
 import { cn } from "@mantainer-system/ui/lib/utils";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { horometerNoun, horometerUnitAbbr } from "@/features/maquinaria/types";
 
 interface ExecutionPanelProps {
   order: MaintenanceOrderResponse;
@@ -73,6 +74,10 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
   const [selectedPart, setSelectedPart] = useState<SparePartResponse | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const horometerUnit = order.machine?.horometer_unit;
+  const horometerLabel = horometerNoun(horometerUnit);
+  const horometerAbbr = horometerUnitAbbr(horometerUnit);
 
   const [horometerInput, setHorometerInput] = useState<number>(order.machine?.current_horometer || 0);
   const [liquidateDialogOpen, setLiquidateDialogOpen] = useState(false);
@@ -200,9 +205,9 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Horómetro Actual</p>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">{horometerLabel} Actual</p>
                   <p className="text-sm font-mono font-bold text-indigo-400">
-                    {order.machine?.current_horometer} hrs
+                    {order.machine?.current_horometer} {horometerAbbr}
                   </p>
                 </div>
                 <div>
@@ -300,7 +305,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
 
                       <div className="space-y-1">
                         <Label htmlFor="horometerInput" className="text-foreground/80 text-xs">
-                          Horómetro de Cierre de Máquina (hrs)
+                          {horometerLabel} de Cierre de Máquina ({horometerAbbr})
                         </Label>
                         <Input
                           id="horometerInput"
@@ -311,7 +316,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                           className="bg-background/80 border-border rounded-xl"
                         />
                         <p className="text-[10px] text-muted-foreground font-medium">
-                          Horómetro actual del activo: {order.machine?.current_horometer} hrs
+                          {horometerLabel} actual del activo: {order.machine?.current_horometer} {horometerAbbr}
                         </p>
                       </div>
 
@@ -319,7 +324,7 @@ export default function ExecutionPanel({ order }: ExecutionPanelProps) {
                         <div className="p-3 rounded-xl bg-rose-950/20 border border-rose-500/20 text-rose-400 text-xs flex gap-2">
                           <AlertTriangleIcon className="size-4 shrink-0 mt-0.5" />
                           <span>
-                            El horómetro ingresado es menor al horómetro actual de la máquina ({order.machine?.current_horometer} hrs).
+                            El {horometerLabel.toLowerCase()} ingresado es menor al {horometerLabel.toLowerCase()} actual de la máquina ({order.machine?.current_horometer} {horometerAbbr}).
                           </span>
                         </div>
                       )}

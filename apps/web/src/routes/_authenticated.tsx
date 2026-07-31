@@ -56,7 +56,6 @@ function AuthenticatedLayout() {
     user,
     roleLabel,
     username,
-    isWarehouse,
     canViewInventory,
     canViewReports,
     canViewSolvencies,
@@ -105,14 +104,17 @@ function AuthenticatedLayout() {
       to: "/maquinaria",
       label: "Maquinaria",
       icon: CpuIcon,
-      // Almacén no gestiona activos: solo inventario y despacho.
-      visible: !isWarehouse,
+      // Almacén no gestiona activos, pero consulta el catálogo y las fichas
+      // técnicas para ubicar la maquinaria asociada a sus Solvencias.
+      visible: true,
     },
     {
       to: "/mantenimiento",
       label: "Mantenimiento",
       icon: WrenchIcon,
-      visible: !isWarehouse,
+      // Almacén consulta el tablero de OTs (solo lectura) para dar seguimiento
+      // a las Solvencias emitidas, aunque no ejecute el flujo de taller.
+      visible: true,
     },
     {
       to: "/repuestos",

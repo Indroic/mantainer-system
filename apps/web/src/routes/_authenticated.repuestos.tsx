@@ -37,9 +37,10 @@ const sparePartSchema = z.object({
 });
 
 function RepuestosComponent() {
-  // spec 2.1: SOLO el Planificador añade o edita artículos del inventario.
-  // Almacén puede visualizar el stock global (spec 2.3) pero no modificarlo.
-  const { canManageInventory, canViewInventory, isWarehouse } = useAuth();
+  // spec 2.1: SOLO el Planificador ajusta stock, precio o da de baja piezas.
+  // Almacén visualiza el stock global (spec 2.3) y puede registrar referencias
+  // nuevas, pero no modificar ni eliminar las existentes.
+  const { canManageInventory, canCreateSpareParts, canViewInventory, isWarehouse } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -84,6 +85,7 @@ function RepuestosComponent() {
   });
 
   const canEdit = canManageInventory;
+  const canCreate = canCreateSpareParts;
 
   /**
    * Exporta el catálogo. Se delega en `downloadFile`, que inyecta el JWT y
@@ -189,7 +191,7 @@ function RepuestosComponent() {
             </>
           )}
 
-          {canEdit && (
+          {canCreate && (
             <Button
               onClick={() => setDialogOpen(true)}
               className="rounded-xl px-4 bg-accent hover:bg-accent/80 text-accent-foreground font-semibold flex items-center gap-1.5 shadow-md shadow-accent/10 h-8"
@@ -201,14 +203,16 @@ function RepuestosComponent() {
         </div>
       </div>
 
-      {/* Almacén consulta el stock global pero no lo modifica (spec 2.3). */}
+      {/* Almacén consulta el stock global y puede registrar referencias nuevas,
+          pero no ajusta stock, precio ni da de baja piezas (spec 2.3). */}
       {isWarehouse && (
         <div className="flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-muted">
           <EyeIcon className="size-4 shrink-0 text-accent mt-0.5" />
           <span>
-            Vista de <strong className="text-foreground">solo consulta</strong>: el registro y la
-            edición de artículos corresponden al Planificador. Las piezas que debe entregar están
-            en la bandeja de <strong className="text-foreground">Despacho</strong>.
+            Puede <strong className="text-foreground">registrar nuevos repuestos</strong>; el
+            ajuste de stock, el costo unitario y la baja de artículos existentes corresponden al
+            Planificador. Las piezas que debe entregar están en la bandeja de{" "}
+            <strong className="text-foreground">Despacho</strong>.
           </span>
         </div>
       )}

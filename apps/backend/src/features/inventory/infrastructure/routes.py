@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.dependencies import (
+    CAN_CREATE_SPARE_PARTS,
     CAN_VIEW_INVENTORY,
     PLANNER_ONLY,
     require_roles,
@@ -64,11 +65,12 @@ def _map_spare_part(sp) -> SparePartResponse:
 async def create_spare_part(
     command: CreateSparePartCommand,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
-    current_user: UserMetadataResponse = Depends(require_roles(PLANNER_ONLY)),
+    current_user: UserMetadataResponse = Depends(require_roles(CAN_CREATE_SPARE_PARTS)),
 ) -> SparePartResponse:
     """Registra una nueva pieza o repuesto en el inventario.
 
-    Restringido a Administradores y Supervisores.
+    Permitido al Planificador y a Almacén (spec 2.3: Almacén puede dar de alta
+    referencias nuevas, aunque no ajusta stock, precio ni da de baja piezas).
     """
     repo = SparePartRepository(uow)
     service = InventoryDomainService(repo)
@@ -413,13 +415,22 @@ async def get_spare_parts(
     search: str | None = None,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
 ) -> list[SparePartResponse]:
-    """Obtiene la lista de todas las piezas del inventario, opcionalmente filtradas por término de búsqueda."""
+    """Obtiene la lista de todas las piezas del inventario, opcionalmente filtradas por término de búsqueda.
+
+    Excluye las piezas dadas de baja lógicamente (is_active=False): sin este
+    filtro, un repuesto eliminado seguía apareciendo en el catálogo aunque la
+    UI invalidara la caché tras el borrado.
+    """
+    from hexcore.application.dtos.query import FilterConditionDTO, FilterOperator
+
     query_dto = QueryRequestDTO(
         limit=1000,
         offset=0,
         search=search,
         search_fields=["code", "name"],
-        filters=[]
+        filters=[
+            FilterConditionDTO(field="is_active", operator=FilterOperator.EQ, value=True)
+        ]
     )
     repo = SparePartRepository(uow)
     use_case = QuerySparePartsUseCase(repo)

@@ -1,0 +1,179 @@
+#################################################################################
+#                          docker-compose.dokploy.yml                           #
+#                                                                                #
+#  Stack único y autocontenido para desplegar mantainer-system (SGMM) en        #
+#  Dokploy como UNA sola aplicación "Docker Compose". Plug and play:            #
+#                                                                                #
+#    1. Crea la app en Dokploy (tipo "Compose"), apunta a este archivo.         #
+#    2. Pega las variables de abajo en la pestaña "Environment" de la app       #
+#       (ver .env.dokploy.project.example para la lista completa).             #
+#    3. Deploy. Dokploy crea la red externa `dokploy-network` si no existe.     #
+#    4. En la pestaña "Domains", asigna el dominio público SOLO al servicio     #
+#       `web`, puerto 80 (nginx hace de proxy inverso hacia auth-server y       #
+#       backend en el mismo origen: /api/auth/*, /trpc/*, /api/*).             #
+#                                                                                #
+#  Aislamiento: todos los servicios viven en la red privada `mantainer-private` #
+#  (no visible para otros proyectos del mismo servidor Dokploy). Únicamente     #
+#  `web` se conecta ADEMÁS a `dokploy-network` para que Traefik pueda           #
+#  alcanzarlo. No se publica ningún puerto de host, así que no puede chocar     #
+#  con los puertos de medical-system, access-control-system ni ningún otro      #
+#  stack desplegado en el mismo servidor.                                      #
+#################################################################################
+
+name: mantainer-system
+
+services:
+  # ── Base de datos PostgreSQL ────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: mantainer-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sgmm_auth_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sgmm_auth_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - mantainer-private
+
+  # ── Migraciones Better Auth (Drizzle) — tarea de un solo disparo ────────────
+  auth-migrate:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile.migrate
+    container_name: mantainer-auth-migrate
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - mantainer-private
+
+  # ── Migraciones FastAPI (Alembic) — tarea de un solo disparo ────────────────
+  backend-migrate:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: mantainer-backend-migrate
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - SQL_DATABASE_URL=${SQL_DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - ASYNC_SQL_DATABASE_URL=${ASYNC_SQL_DATABASE_URL:-postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - mantainer-private
+
+  # ── Servidor de autenticación Better Auth (Node/Hono) — SOLO interno ────────
+  # No se le asigna dominio público en Dokploy: se alcanza vía el proxy de `web`.
+  auth-server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: mantainer-auth-server
+    environment:
+      - PORT=3000
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET es obligatoria (openssl rand -hex 32)}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:80}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - MAIL_FROM=${MAIL_FROM:-SGMM Portal <no-reply@sgmm.indroic.dev>}
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-migrate:
+        condition: service_completed_successfully
+    networks:
+      - mantainer-private
+
+  # ── API REST FastAPI (Python) — SOLO interno ────────────────────────────────
+  # No se le asigna dominio público en Dokploy: se alcanza vía el proxy de `web`
+  # (http://localhost:80/api/*).
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: mantainer-backend
+    environment:
+      - PORT=8000
+      - SQL_DATABASE_URL=${SQL_DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - ASYNC_SQL_DATABASE_URL=${ASYNC_SQL_DATABASE_URL:-postgresql+asyncpg://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL_INTERNAL:-http://auth-server:3000}
+      - JWKS_URL=${JWKS_URL:-http://auth-server:3000/api/auth/jwks}
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend-migrate:
+        condition: service_completed_successfully
+      auth-server:
+        condition: service_started
+    networks:
+      - mantainer-private
+
+  # ── Frontend Web (nginx SPA + proxy inverso single-origin) ── ÚNICO público ─
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: mantainer-web
+    environment:
+      # Informativas (URLs hardcodeadas al mismo origen en el código): se dejan
+      # solo por compatibilidad con inject-env.sh.
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:80}
+      - VITE_AUTH_URL=${VITE_AUTH_URL:-http://localhost:80}
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      - backend
+      - auth-server
+    networks:
+      mantainer-private:
+        aliases:
+          - web
+      dokploy-network:
+        aliases:
+          - mantainer-web-public
+
+networks:
+  # Red privada: solo los contenedores de este stack se resuelven entre sí.
+  mantainer-private:
+    driver: bridge
+  # Red compartida que crea Dokploy para el ingress de Traefik. Solo `web` la usa.
+  dokploy-network:
+    external: true
+
+volumes:
+  postgres_data:
+    name: sgmm_postgres_data_v2

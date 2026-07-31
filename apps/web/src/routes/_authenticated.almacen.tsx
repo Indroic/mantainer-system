@@ -187,6 +187,10 @@ function AlmacenComponent() {
         <div className="space-y-4">
           {solvencies.map((solvency) => {
             const dispatched = solvency.status === "DESPACHADO";
+            // Una devolución no pasa por el flujo de despacho: el stock ya se
+            // repuso al registrarla, así que no debe marcarse ni actuarse como
+            // una asignación pendiente (evita el badge y el botón duplicados).
+            const isReturn = solvency.solvency_type === "DEVOLUCION";
             const items = Array.isArray(solvency.items) ? solvency.items : [];
 
             return (
@@ -200,12 +204,14 @@ function AlmacenComponent() {
                       <Badge
                         className={cn(
                           "rounded-lg border px-2 py-0.5 text-[9px] font-bold uppercase",
-                          dispatched
-                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                            : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                          isReturn
+                            ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400"
+                            : dispatched
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                              : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400",
                         )}
                       >
-                        {dispatched ? "Despachado" : "Pendiente de despacho"}
+                        {isReturn ? "Devolución" : dispatched ? "Despachado" : "Pendiente de despacho"}
                       </Badge>
                     </div>
                     <CardTitle className="text-sm font-semibold text-foreground">
@@ -215,9 +221,10 @@ function AlmacenComponent() {
                       {solvency.order_description || "Orden de trabajo asociada"}
                     </CardDescription>
                     <p className="text-[10px] text-muted-foreground/80">
-                      Emitida por {solvency.issued_by_name || solvency.issued_by} el{" "}
+                      {isReturn ? "Devuelta por" : "Emitida por"}{" "}
+                      {solvency.issued_by_name || solvency.issued_by} el{" "}
                       {new Date(solvency.created_at).toLocaleString()}
-                      {dispatched && solvency.dispatched_by_name
+                      {!isReturn && dispatched && solvency.dispatched_by_name
                         ? ` · Entregada por ${solvency.dispatched_by_name}`
                         : ""}
                     </p>
@@ -236,7 +243,7 @@ function AlmacenComponent() {
                       <DownloadIcon className="size-3.5" />
                       PDF
                     </Button>
-                    {canDispatchSolvencies && !dispatched && (
+                    {canDispatchSolvencies && !dispatched && !isReturn && (
                       <Button
                         type="button"
                         onClick={() => dispatchSolvency.mutate(solvency.id)}

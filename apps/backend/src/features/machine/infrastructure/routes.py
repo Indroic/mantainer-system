@@ -4,6 +4,7 @@ from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.dependencies import (
     CAN_EXECUTE_ORDERS,
     CAN_MANAGE_MACHINES,
+    CAN_VIEW_MACHINES,
     PLANNER_ONLY,
     require_roles,
 )
@@ -341,7 +342,7 @@ async def get_machines(
     search: str | None = None,
     uow: SqlAlchemyUnitOfWork = Depends(get_uow),
     current_user: UserMetadataResponse = Depends(
-        require_roles(CAN_EXECUTE_ORDERS)
+        require_roles(CAN_VIEW_MACHINES)
     ),
 ) -> list[MachineResponse]:
     """Obtiene la lista de todas las máquinas, opcionalmente filtradas por estado o término de búsqueda.
@@ -412,7 +413,7 @@ async def get_machines(
     response_model=MachineResponse,
     dependencies=[
         Depends(
-            require_roles(CAN_EXECUTE_ORDERS)
+            require_roles(CAN_VIEW_MACHINES)
         )
     ],
 )

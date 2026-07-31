@@ -80,6 +80,9 @@ export function useAuth() {
     // ---------------------------------------------------------------------
     /** Solo el Planificador gestiona inventario y asigna repuestos (spec 2.1). */
     canManageInventory: isPlanner,
+    /** Almacén también puede dar de alta referencias nuevas, aunque no ajusta
+     * stock, precio ni da de baja piezas (esas siguen siendo del Planificador). */
+    canCreateSpareParts: isPlanner || isWarehouse,
     canAssignSpareParts: isPlanner,
     /** El Supervisor y el Mecánico pueden crear OT (spec 2.2). */
     canCreateOrders: isPlanner || isSupervisor || isMechanic,

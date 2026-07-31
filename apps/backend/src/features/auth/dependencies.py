@@ -30,8 +30,30 @@ CAN_VIEW_INVENTORY = [
     UserRole.ALMACEN,
 ]
 
+#: Roles que pueden registrar nuevos repuestos en el inventario (Almacén incluido:
+#: da de alta piezas, pero no ajusta stock/precio ni da de baja).
+CAN_CREATE_SPARE_PARTS = [UserRole.PLANIFICADOR, UserRole.ALMACEN]
+
 #: Roles que administran el catálogo de maquinaria (altas, estados, bajas).
 CAN_MANAGE_MACHINES = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR]
+
+#: Roles con visibilidad de solo lectura sobre el catálogo de maquinaria (Almacén
+#: incluido: consulta el activo desde la Solvencia, pero no lo gestiona).
+CAN_VIEW_MACHINES = [
+    UserRole.PLANIFICADOR,
+    UserRole.SUPERVISOR,
+    UserRole.MECANICO,
+    UserRole.ALMACEN,
+]
+
+#: Roles con visibilidad de solo lectura sobre el flujo de Órdenes de Trabajo
+#: (Almacén incluido: consulta el estado de la OT que originó la Solvencia).
+CAN_VIEW_MAINTENANCE = [
+    UserRole.PLANIFICADOR,
+    UserRole.SUPERVISOR,
+    UserRole.MECANICO,
+    UserRole.ALMACEN,
+]
 
 #: Roles con acceso a información financiera / analítica.
 CAN_VIEW_REPORTS = [UserRole.PLANIFICADOR, UserRole.SUPERVISOR]

@@ -93,13 +93,10 @@ function DashboardComponent() {
     isWarehouse,
   } = useAuth();
 
-  const { data: machines = [], isLoading: machinesLoading } = useMachines(
-    undefined,
-    { enabled: !isWarehouse },
-  );
-  const { data: orders = [], isLoading: ordersLoading } = useOrders(undefined, {
-    enabled: !isWarehouse,
-  });
+  // Almacén también consulta maquinaria y OTs en modo lectura (spec 2.3): los
+  // contadores globales del dashboard deben reflejar datos reales para su rol.
+  const { data: machines = [], isLoading: machinesLoading } = useMachines();
+  const { data: orders = [], isLoading: ordersLoading } = useOrders();
   const { data: spareParts = [], isLoading: partsLoading } = useSpareParts(
     undefined,
     { enabled: canViewInventory },

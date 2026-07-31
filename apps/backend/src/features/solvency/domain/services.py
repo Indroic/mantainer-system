@@ -107,6 +107,12 @@ class SolvencyDomainService(BaseDomainService):
         ``items`` son pares ``(spare_part_id, cantidad_devuelta)``. El código,
         nombre y costo se copian del catálogo al emitir, igual que en la solvencia
         de asignación.
+
+        A diferencia de la Solvencia de asignación, la devolución no requiere que
+        Almacén confirme un despacho físico (el stock ya se incrementó en el
+        mismo momento en que se registró la devolución): el documento nace
+        directamente como ``DESPACHADO`` para no quedar acumulado en la bandeja
+        de "pendientes de despacho" junto a la pieza asignada original.
         """
         machine_code: str | None = None
         try:
@@ -122,7 +128,8 @@ class SolvencyDomainService(BaseDomainService):
             machine_id=machine_id,
             machine_code=machine_code,
             issued_by=issued_by,
-            status=SolvencyStatus.PENDIENTE_DESPACHO,
+            status=SolvencyStatus.DESPACHADO,
+            dispatched_by=issued_by,
             notes=notes,
         )
 
