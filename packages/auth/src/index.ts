@@ -51,16 +51,16 @@ function isPlannerRole(role: unknown): boolean {
 // =============================================================================
 // Configuración HARDCODEADA (no depende de variables de entorno).
 // Topología SINGLE-ORIGIN (todo detrás del proxy inverso de la web):
-//   - web + auth + api:  http://localhost:80
+//   - web + auth + api:  https://sgmm.indroic.dev
 //     · /api/auth/*  -> auth-server (Better Auth)
 //     · /trpc/*      -> auth-server
 //     · /api/*       -> backend FastAPI
 // Al servirse todo desde el mismo dominio, NO hay CORS ni cookies cross-subdominio.
 // =============================================================================
-const BETTER_AUTH_URL = "http://localhost:80";
+const BETTER_AUTH_URL = "https://sgmm.indroic.dev";
 const BETTER_AUTH_SECRET =
   "df8374a2b918fcd3e5719365bc920c8de817f5492bc394a108de92bc8172fa8b";
-const TRUSTED_ORIGINS = ["http://localhost:80"];
+const TRUSTED_ORIGINS = ["https://sgmm.indroic.dev"];
 
 export function createAuth() {
   const db = createDb();

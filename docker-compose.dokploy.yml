@@ -88,7 +88,12 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET es obligatoria (openssl rand -hex 32)}
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:80}
+      # Nota: packages/auth/src/index.ts tiene baseURL/trustedOrigins HARDCODEADOS
+      # a https://sgmm.indroic.dev y NO lee esta variable; se deja por si en el
+      # futuro se migra a lectura desde entorno. Si cambias de dominio, edita
+      # también packages/auth/src/index.ts, apps/server/src/index.ts y
+      # apps/web/src/{lib/auth-client.ts,lib/api-client.ts,router.tsx,routes/setup-admin.tsx}.
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-https://sgmm.indroic.dev}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - MAIL_FROM=${MAIL_FROM:-SGMM Portal <no-reply@sgmm.indroic.dev>}
     restart: always
@@ -108,7 +113,7 @@ services:
 
   # ── API REST FastAPI (Python) — SOLO interno ────────────────────────────────
   # No se le asigna dominio público en Dokploy: se alcanza vía el proxy de `web`
-  # (http://localhost:80/api/*).
+  # (https://sgmm.indroic.dev/api/*).
   backend:
     build:
       context: apps/backend
@@ -146,8 +151,8 @@ services:
     environment:
       # Informativas (URLs hardcodeadas al mismo origen en el código): se dejan
       # solo por compatibilidad con inject-env.sh.
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:80}
-      - VITE_AUTH_URL=${VITE_AUTH_URL:-http://localhost:80}
+      - VITE_API_URL=${VITE_API_URL:-https://sgmm.indroic.dev}
+      - VITE_AUTH_URL=${VITE_AUTH_URL:-https://sgmm.indroic.dev}
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ > /dev/null || exit 1"]

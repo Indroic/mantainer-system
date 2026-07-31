@@ -36,7 +36,7 @@ app.use(logger());
 // del proxy inverso de la web) las peticiones del navegador son del mismo origen
 // y CORS deja de aplicar; este middleware queda como red de seguridad por si el
 // servicio se expusiera directamente.
-const ALLOWED_ORIGINS = ["http://localhost:80"];
+const ALLOWED_ORIGINS = ["https://sgmm.indroic.dev"];
 
 app.use(
   "/*",

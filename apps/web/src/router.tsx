@@ -12,7 +12,7 @@ import { TRPCProvider } from "./utils/trpc";
 
 // Mismo origen que la web: el router tRPC se alcanza vía proxy inverso en
 // `/trpc/*` (configurado en nginx), evitando CORS.
-const authBaseURL = "https://localhost:80";
+const authBaseURL = "https://sgmm.indroic.dev";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({

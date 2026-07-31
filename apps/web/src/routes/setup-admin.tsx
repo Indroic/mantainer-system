@@ -10,7 +10,7 @@ import z from "zod";
 import { authClient } from "@/lib/auth-client";
 
 // Mismo origen que la web: /create-planner se alcanza vía proxy inverso (nginx).
-const AUTH_URL = "http://localhost:80";
+const AUTH_URL = "https://sgmm.indroic.dev";
 
 export const Route = createFileRoute("/setup-admin")({
   component: SetupAdminComponent,
