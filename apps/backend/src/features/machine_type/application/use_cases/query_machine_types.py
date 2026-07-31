@@ -1,13 +1,9 @@
-from hexcore.application.use_cases.base import UseCase
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
-from src.features.machine_type.infrastructure.repositories import MachineTypeRepository
+from hexcore.application.use_cases.query import QueryEntitiesUseCase
+from src.features.machine_type.domain.entities import MachineType
 
 
-class QueryMachineTypesUseCase(
-    UseCase[QueryRequestDTO, QueryResponseDTO]
-):
-    def __init__(self, repo: MachineTypeRepository) -> None:
-        self.repo = repo
-
+class QueryMachineTypesUseCase(QueryEntitiesUseCase[MachineType]):
     async def execute(self, query: QueryRequestDTO) -> QueryResponseDTO:
-        return await self.repo.query(query)
+        """Consulta, filtra y pagina tipos de maquinaria de manera dinámica."""
+        return await super().execute(query)
