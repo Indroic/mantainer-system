@@ -296,7 +296,11 @@ async def import_spare_parts_csv(
     del archivo de exportación generado por este sistema, por lo que se puede
     exportar, editar y volver a subir.
     """
-    from src.shared.infrastructure.reporting.excel import read_tabular_upload
+    from src.shared.infrastructure.reporting.excel import (
+        parse_decimal_cell,
+        parse_int_cell,
+        read_tabular_upload,
+    )
 
     content = await file.read()
     try:
@@ -321,14 +325,19 @@ async def import_spare_parts_csv(
                 errors.append(f"Fila {i}: 'Código' y 'Nombre' son obligatorios.")
                 continue
 
-            unit_cost_raw = row.get("Costo Unitario", "0").strip()
-            unit_cost = float(unit_cost_raw) if unit_cost_raw else 0.0
-            stock_min_raw = row.get("Stock Mínimo", "0").strip()
-            stock_min = int(stock_min_raw) if stock_min_raw else 0
-            stock_cur_raw = row.get("Stock Actual", "0").strip()
-            stock_cur = int(stock_cur_raw) if stock_cur_raw else 0
-            usd_raw = row.get("Costo USD", "").strip()
-            unit_cost_usd = float(usd_raw) if usd_raw else None
+            # Las cantidades y los importes se leen con el parser tolerante:
+            # openpyxl entrega los números de Excel como float, así que un stock
+            # de 5 llega como "5.0" y un int("5.0") directo reventaba la
+            # importación entera con "invalid literal for int()".
+            unit_cost = parse_decimal_cell(
+                row.get("Costo Unitario"), field="Costo Unitario"
+            )
+            stock_min = parse_int_cell(row.get("Stock Mínimo"), field="Stock Mínimo")
+            stock_cur = parse_int_cell(row.get("Stock Actual"), field="Stock Actual")
+            usd_raw = (row.get("Costo USD") or "").strip()
+            unit_cost_usd = (
+                parse_decimal_cell(usd_raw, field="Costo USD") if usd_raw else None
+            )
 
             command = CreateSparePartCommand(
                 code=code,

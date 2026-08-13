@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, downloadFile } from "@/lib/api-client";
 import type {
   MaintenanceOrderResponse,
   CreateMaintenanceOrderCommand,
@@ -29,6 +29,49 @@ export function useOrders(
     staleTime: 10 * 1000, // Refrescar rápido debido al flujo en tiempo real del taller
     // El rol Almacén no participa en el flujo de OT: se evita el 403.
     enabled: options?.enabled ?? true,
+  });
+}
+
+/** Formatos de descarga admitidos por la exportación de OT (spec 4.4). */
+export type OrderExportFormat = "xlsx" | "csv" | "pdf";
+
+/**
+ * Exporta el listado de Órdenes de Trabajo en Excel, CSV o PDF.
+ *
+ * Se le pasan los MISMOS filtros que muestra el tablero: si divergieran, el
+ * archivo descargado no coincidiría con lo que el usuario tiene delante.
+ */
+export function useExportOrders() {
+  return useMutation({
+    mutationFn: async ({
+      format,
+      filters,
+    }: {
+      format: OrderExportFormat;
+      filters?: { status?: string; machine_id?: string; failure_category?: string };
+    }) => {
+      const params: Record<string, string> = { format };
+      Object.entries(filters ?? {}).forEach(([key, value]) => {
+        const token = value?.trim();
+        if (token && token !== "ALL") params[key] = token;
+      });
+      await downloadFile("/maintenance/export", { params });
+    },
+    onSuccess: () => toast.success("Órdenes de trabajo exportadas con éxito"),
+    onError: (error: any) =>
+      toast.error(error?.data?.detail || error?.message || "No se pudo exportar el listado"),
+  });
+}
+
+/** Descarga la Hoja de Orden de Trabajo individual en PDF, lista para firmar. */
+export function useExportOrderSheet() {
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      await downloadFile(`/maintenance/${orderId}/export`);
+    },
+    onSuccess: () => toast.success("Hoja de OT descargada con éxito"),
+    onError: (error: any) =>
+      toast.error(error?.data?.detail || error?.message || "No se pudo descargar la OT"),
   });
 }
 

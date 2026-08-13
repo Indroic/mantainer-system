@@ -4,6 +4,7 @@ import { useFleetStatus, useMachines } from "@/features/maquinaria/hooks/use-mac
 import FleetStatusChart from "@/features/maquinaria/components/fleet-status-chart";
 import { useOrders } from "@/features/mantenimiento/hooks/use-maintenance";
 import { useSpareParts } from "@/features/repuestos/hooks/use-spare-parts";
+import DashboardAnalytics from "@/features/reportes/components/dashboard-analytics";
 import { Card, CardContent } from "@mantainer-system/ui/components/card";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import {
@@ -234,7 +235,12 @@ function DashboardComponent() {
         <FleetStatusChart data={fleetStatus} isLoading={fleetLoading} />
       )}
 
-      {/* 4. Módulos de acceso rápido */}
+      {/* 4. Reportes y estadísticas del periodo (spec 4.2).
+          Solo para los roles con acceso a información financiera/analítica: el
+          endpoint analítico exige ese permiso y pedirlo sin él daría un 403. */}
+      {canViewReports && <DashboardAnalytics />}
+
+      {/* 5. Módulos de acceso rápido */}
       <div className="space-y-3">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Acciones y Módulos</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

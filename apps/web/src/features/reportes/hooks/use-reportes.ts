@@ -5,24 +5,55 @@ import { toast } from "sonner";
 import type {
   AnalyticsFilters,
   AnalyticsReportResponse,
+  AuditLogFacetsResponse,
+  AuditLogFilters,
   AuditLogResponse,
   CostReportResponse,
 } from "../types";
 
-export function useAuditLogs(filters?: { entity_name?: string; action?: string }) {
+/** Centinela de los selectores para representar "sin filtro". */
+const ALL = "ALL";
+
+export function useAuditLogs(filters?: AuditLogFilters, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["audit-logs", filters],
     queryFn: async () => {
       const params: Record<string, string> = {};
-      if (filters?.entity_name && filters.entity_name !== "ALL") {
-        params.entity_name = filters.entity_name;
-      }
-      if (filters?.action && filters.action !== "ALL") {
-        params.action = filters.action;
-      }
-      return await apiClient.get<AuditLogResponse[]>("/audit-logs/", { params });
+      // Solo se envían los filtros con valor real: el centinela "ALL" significa
+      // "sin filtro" y enviarlo como valor literal no casaría con ningún registro.
+      const assign = (key: keyof AuditLogFilters) => {
+        const value = filters?.[key]?.trim();
+        if (value && value !== ALL) params[key] = value;
+      };
+      assign("entity_name");
+      assign("action");
+      assign("search");
+      assign("date_from");
+      assign("date_to");
+
+      const data = await apiClient.get<AuditLogResponse[]>("/audit-logs/", { params });
+      return Array.isArray(data) ? data : [];
     },
     staleTime: 5 * 1000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Entidades y operaciones que existen de verdad en la bitácora.
+ *
+ * Los desplegables se construyen con esto para que ningún filtro ofrezca un
+ * valor que la bitácora no contiene (el motivo por el que los filtros
+ * `UPDATE` y `DELETE` no devolvían nada: el backend graba `UPDATE_STOCK`,
+ * `SOFT_DELETE`, etc.).
+ */
+export function useAuditFacets(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["audit-log-facets"],
+    queryFn: async () =>
+      await apiClient.get<AuditLogFacetsResponse>("/audit-logs/facets"),
+    staleTime: 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

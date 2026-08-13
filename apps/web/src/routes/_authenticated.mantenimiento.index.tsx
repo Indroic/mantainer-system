@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOrders, useCreateOrder, useMechanics } from "@/features/mantenimiento/hooks/use-maintenance";
+import {
+  useOrders,
+  useCreateOrder,
+  useMechanics,
+  useExportOrders,
+} from "@/features/mantenimiento/hooks/use-maintenance";
 import { useMachines } from "@/features/maquinaria/hooks/use-machines";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import KanbanBoard from "@/features/mantenimiento/components/kanban-board";
@@ -9,7 +14,7 @@ import { TextField, TextArea, FieldError, Label } from "@heroui/react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@mantainer-system/ui/components/select";
 import { Skeleton } from "@mantainer-system/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
-import { WrenchIcon, PlusIcon, ClipboardListIcon } from "lucide-react";
+import { WrenchIcon, PlusIcon, ClipboardListIcon, DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import z from "zod";
 import { FAILURE_CATEGORIES, type FailureCategory } from "@/features/mantenimiento/types";
@@ -65,8 +70,9 @@ function MantenimientoIndexComponent() {
   const { data: machines = [] } = useMachines({ status: "ACTIVA" }, { enabled: canCreate });
   const { data: mechanics = [] } = useMechanics({ enabled: canCreate });
 
-  // Mutación
+  // Mutaciones
   const createOrderMutation = useCreateOrder();
+  const exportOrders = useExportOrders();
 
   const form = useForm({
     defaultValues: {
@@ -109,15 +115,46 @@ function MantenimientoIndexComponent() {
           </p>
         </div>
 
-        {canCreate && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* Exportación del listado de OT en Excel / CSV / PDF (spec 4.4) */}
           <Button
-            onClick={() => setDialogOpen(true)}
-            className="rounded-xl px-4 bg-accent hover:bg-accent/80 text-accent-foreground font-semibold flex items-center gap-1.5 shadow-md shadow-accent/10 h-8"
+            variant="outline"
+            onClick={() => exportOrders.mutate({ format: "xlsx" })}
+            disabled={exportOrders.isPending}
+            className="h-8 gap-1.5 rounded-xl border-border px-3 text-xs font-semibold"
           >
-            <PlusIcon className="size-4" />
-            Programar Orden (OT)
+            <DownloadIcon className="size-3.5" />
+            Excel
           </Button>
-        )}
+          <Button
+            variant="outline"
+            onClick={() => exportOrders.mutate({ format: "csv" })}
+            disabled={exportOrders.isPending}
+            className="h-8 gap-1.5 rounded-xl border-border px-3 text-xs font-semibold"
+          >
+            <DownloadIcon className="size-3.5" />
+            CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportOrders.mutate({ format: "pdf" })}
+            disabled={exportOrders.isPending}
+            className="h-8 gap-1.5 rounded-xl border-border px-3 text-xs font-semibold"
+          >
+            <DownloadIcon className="size-3.5" />
+            PDF
+          </Button>
+
+          {canCreate && (
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="rounded-xl px-4 bg-accent hover:bg-accent/80 text-accent-foreground font-semibold flex items-center gap-1.5 shadow-md shadow-accent/10 h-8"
+            >
+              <PlusIcon className="size-4" />
+              Programar Orden (OT)
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tablero Kanban y Listado Responsivo */}

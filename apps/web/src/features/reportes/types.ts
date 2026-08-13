@@ -10,6 +10,27 @@ export interface AuditLogResponse {
   is_active: boolean;
 }
 
+/** Filtros de la Bitácora de Auditoría Forense. */
+export interface AuditLogFilters {
+  entity_name?: string;
+  action?: string;
+  search?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export interface AuditFacetItem {
+  value: string;
+  count: number;
+}
+
+/** Valores presentes en la bitácora, para poblar los desplegables de filtro. */
+export interface AuditLogFacetsResponse {
+  entity_names: AuditFacetItem[];
+  actions: AuditFacetItem[];
+  total: number;
+}
+
 export interface CostReportItem {
   machine_code: string;
   machine_brand: string;

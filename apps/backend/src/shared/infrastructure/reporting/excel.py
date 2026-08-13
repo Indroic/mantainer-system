@@ -319,6 +319,108 @@ def read_tabular_upload(content: bytes, filename: str) -> list[dict[str, str]]:
     ]
 
 
+# ---------------------------------------------------------------------------
+# Lectura de valores numéricos de un archivo importado
+# ---------------------------------------------------------------------------
+def parse_decimal_cell(raw: object, *, field: str, default: float = 0.0) -> float:
+    """Interpreta una celda numérica de un archivo importado, tolerando formatos.
+
+    ``read_tabular_upload`` entrega todas las celdas como texto, y openpyxl
+    devuelve los números de Excel como ``float``: un stock de 5 llega como
+    ``"5.0"``. Además, un CSV guardado desde Excel puede traer separador de
+    miles (``"1,234.56"``), coma decimal (``"1.234,56"``), símbolo de moneda o
+    un negativo entre paréntesis. Se normaliza todo aquí para que ningún
+    endpoint de importación tenga que repetir estas reglas.
+
+    Lanza ``ValueError`` con un mensaje en español si el valor no es numérico.
+    """
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        # Un booleano no es una cantidad: se rechaza antes de que int(True) == 1.
+        raise ValueError(f"'{field}' debe ser numérico (recibido: '{raw}').")
+    if isinstance(raw, (int, float)):
+        return float(raw)
+
+    token = str(raw).strip()
+    if not token:
+        return default
+
+    # Negativos contables: (1.234,56) equivale a -1234,56.
+    negative = token.startswith("(") and token.endswith(")")
+    if negative:
+        token = token[1:-1].strip()
+
+    # Se descarta todo lo que no sea dígito, separador o signo (moneda, unidades,
+    # espacios de agrupación incluido el espacio fino que insertan algunas hojas).
+    cleaned = "".join(c for c in token if c.isdigit() or c in ",.-+")
+    if not cleaned or cleaned in ("-", "+", ".", ","):
+        raise ValueError(f"'{field}' debe ser numérico (recibido: '{raw}').")
+
+    cleaned = _normalize_decimal_separator(cleaned)
+
+    try:
+        value = float(cleaned)
+    except ValueError as exc:
+        raise ValueError(
+            f"'{field}' debe ser numérico (recibido: '{raw}')."
+        ) from exc
+
+    return -value if negative else value
+
+
+def parse_int_cell(raw: object, *, field: str, default: int = 0) -> int:
+    """Igual que :func:`parse_decimal_cell` pero devuelve un entero.
+
+    Un valor con decimales significativos se rechaza en lugar de truncarse en
+    silencio: en cantidades de inventario, aceptar "2,5 unidades" como 2
+    falsearía el stock sin avisar. En cambio ``"5.0"`` sí es un 5 legítimo, que
+    es la forma en la que Excel entrega los enteros.
+    """
+    value = parse_decimal_cell(raw, field=field, default=float(default))
+    rounded = round(value)
+    if abs(value - rounded) > 1e-9:
+        raise ValueError(
+            f"'{field}' debe ser un número entero (recibido: '{raw}')."
+        )
+    return int(rounded)
+
+
+def _normalize_decimal_separator(token: str) -> str:
+    """Resuelve si la coma o el punto es el separador decimal.
+
+    Reglas, en orden:
+
+    1. Si aparecen AMBOS separadores, manda el último y el otro es de miles.
+       Cubre ``1,234.56`` (inglés) y ``1.234,56`` (español).
+    2. Si el mismo separador aparece varias veces, solo puede ser de miles
+       (``1.234.567``).
+    3. Si aparece una sola vez, se interpreta como separador DECIMAL.
+
+    La regla 3 es deliberada: ``"1.234"`` es ambiguo (mil doscientos treinta y
+    cuatro, o uno con 234 milésimas). Tomarlo como decimal nunca multiplica el
+    valor por mil a espaldas del usuario, y en las cantidades enteras
+    (:func:`parse_int_cell`) el resultado fraccionario se rechaza con un mensaje
+    explícito en vez de importar un stock equivocado en silencio.
+    """
+    last_comma = token.rfind(",")
+    last_dot = token.rfind(".")
+
+    if last_comma >= 0 and last_dot >= 0:
+        if last_comma > last_dot:
+            return token.replace(".", "").replace(",", ".")
+        return token.replace(",", "")
+
+    separator = "," if last_comma >= 0 else ("." if last_dot >= 0 else "")
+    if not separator:
+        return token
+
+    if token.count(separator) > 1:
+        return token.replace(separator, "")
+
+    return token.replace(separator, ".")
+
+
 def _find_header_row(rows: Sequence[Sequence[object]]) -> int | None:
     """Localiza la fila de encabezados, saltando el bloque de título de la plantilla.
 

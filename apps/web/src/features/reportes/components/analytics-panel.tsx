@@ -166,12 +166,12 @@ export default function AnalyticsPanel({ report }: AnalyticsPanelProps) {
 }
 
 /** Porcentaje del valor respecto al máximo de la serie (para normalizar barras). */
-function percentOfMax(value: number, all: number[]): number {
+export function percentOfMax(value: number, all: number[]): number {
   const max = Math.max(...all, 0);
   return max > 0 ? (value / max) * 100 : 0;
 }
 
-function MetricTile({
+export function MetricTile({
   label,
   value,
   hint,
@@ -200,7 +200,7 @@ function MetricTile({
   );
 }
 
-interface RankingRow {
+export interface RankingRow {
   key: string;
   primary: string;
   secondary: string;
@@ -210,7 +210,7 @@ interface RankingRow {
   ratio: number;
 }
 
-function RankingCard({
+export function RankingCard({
   title,
   description,
   rows,
@@ -283,7 +283,7 @@ function RankingCard({
  * Serie temporal como columnas. Un solo tono (magnitud), etiquetas del eje X
  * legibles y el valor en el tooltip nativo de cada columna.
  */
-function TrendChart({
+export function TrendChart({
   trend,
 }: {
   trend: AnalyticsReportResponse["cost_trend"];

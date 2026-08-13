@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from hexcore.application.dtos.query import QueryRequestDTO, QueryResponseDTO
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 from src.features.auth.dependencies import (
@@ -379,6 +379,211 @@ async def get_orders(
     for o in result.items:
         orders_dtos.append(await _to_maintenance_response(o, uow))
     return orders_dtos
+
+
+# ===========================================================================
+# Exportación de Órdenes de Trabajo (spec 4.4)
+#
+# IMPORTANTE: `/export` se declara ANTES de `GET /{order_id}`; si se declarara
+# después, FastAPI resolvería `/maintenance/export` tomando `export` como el ID
+# de una OT.
+# ===========================================================================
+async def _load_orders_for_export(
+    uow: SqlAlchemyUnitOfWork,
+    *,
+    status_filter: str | None = None,
+    machine_id: str | None = None,
+    mechanic_id: str | None = None,
+    failure_category: str | None = None,
+) -> tuple[list, str]:
+    """Órdenes hidratadas para exportar, junto a la etiqueta del recorte aplicado.
+
+    Se reutiliza el mismo filtrado que el tablero para que el archivo descargado
+    coincida exactamente con lo que el usuario está viendo en pantalla.
+    """
+    from uuid import UUID
+
+    from hexcore.application.dtos.query import FilterConditionDTO, FilterOperator
+
+    def _clean(raw: str | None) -> str | None:
+        token = (raw or "").strip()
+        return None if not token or token.upper() == "ALL" else token
+
+    def _as_uuid(raw: str, *, label: str) -> UUID:
+        """`machine_id` y `assigned_mechanic_id` son columnas UUID.
+
+        Se convierte el texto del query param a ``UUID`` en lugar de compararlo
+        como cadena: la representación textual de un UUID depende del motor
+        (PostgreSQL usa guiones, SQLite guarda hexadecimal sin ellos), así que
+        comparar como texto filtraría bien en un backend y mal en el otro.
+        """
+        try:
+            return UUID(raw)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"{label} inválido: '{raw}'."
+            ) from exc
+
+    filters = []
+    scope_parts: list[str] = []
+
+    if value := _clean(status_filter):
+        filters.append(
+            FilterConditionDTO(field="status", operator=FilterOperator.EQ, value=value)
+        )
+        from src.features.maintenance.infrastructure.exporters import status_label
+
+        scope_parts.append(f"Estado: {status_label(value)}")
+
+    if value := _clean(machine_id):
+        filters.append(
+            FilterConditionDTO(
+                field="machine_id",
+                operator=FilterOperator.EQ,
+                value=_as_uuid(value, label="Identificador de máquina"),
+            )
+        )
+        scope_parts.append("Filtrado por máquina")
+
+    if value := _clean(mechanic_id):
+        filters.append(
+            FilterConditionDTO(
+                field="assigned_mechanic_id",
+                operator=FilterOperator.EQ,
+                value=_as_uuid(value, label="Identificador de mecánico"),
+            )
+        )
+        scope_parts.append("Filtrado por mecánico")
+
+    if value := _clean(failure_category):
+        filters.append(
+            FilterConditionDTO(
+                field="failure_category", operator=FilterOperator.EQ, value=value
+            )
+        )
+        from src.features.maintenance.domain.entities import failure_category_label
+
+        scope_parts.append(f"Falla: {failure_category_label(value)}")
+
+    query_dto = QueryRequestDTO(limit=10000, offset=0, filters=filters)
+    result = await QueryMaintenanceOrdersUseCase(
+        MaintenanceOrderRepository(uow)
+    ).execute(query_dto)
+
+    orders = [await _to_maintenance_response(order, uow) for order in result.items]
+    # Más recientes primero: es el orden en el que se revisa el tablero.
+    orders.sort(key=lambda o: o.created_at, reverse=True)
+
+    return orders, " · ".join(scope_parts) if scope_parts else "Todas las OT"
+
+
+@router.get(
+    "/export",
+    dependencies=[Depends(require_roles(CAN_VIEW_MAINTENANCE))],
+)
+async def export_orders(
+    format: str = "xlsx",
+    status: str | None = None,
+    machine_id: str | None = None,
+    mechanic_id: str | None = None,
+    failure_category: str | None = None,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> Response:
+    """Exporta el listado de Órdenes de Trabajo en Excel, CSV o PDF.
+
+    Admite los mismos filtros que el tablero (estado, máquina, mecánico y
+    clasificación de falla), de modo que el archivo refleje el recorte visible.
+    """
+    from src.features.maintenance.infrastructure.exporters import (
+        render_orders_csv,
+        render_orders_pdf,
+        render_orders_xlsx,
+    )
+
+    orders, scope_label = await _load_orders_for_export(
+        uow,
+        status_filter=status,
+        machine_id=machine_id,
+        mechanic_id=mechanic_id,
+        failure_category=failure_category,
+    )
+
+    normalized = (format or "xlsx").strip().lower()
+
+    if normalized == "pdf":
+        return Response(
+            content=render_orders_pdf(orders, scope_label=scope_label),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="ordenes_trabajo_sgmm.pdf"'
+            },
+        )
+
+    if normalized == "csv":
+        return Response(
+            content=render_orders_csv(orders),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": 'attachment; filename="ordenes_trabajo_sgmm.csv"'
+            },
+        )
+
+    if normalized not in ("xlsx", "excel"):
+        raise HTTPException(
+            status_code=400, detail="Formato inválido. Use 'xlsx', 'csv' o 'pdf'."
+        )
+
+    return Response(
+        content=render_orders_xlsx(orders, scope_label=scope_label),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": 'attachment; filename="ordenes_trabajo_sgmm.xlsx"'
+        },
+    )
+
+
+@router.get(
+    "/{order_id}/export",
+    dependencies=[Depends(require_roles(CAN_VIEW_MAINTENANCE))],
+)
+async def export_order_sheet(
+    order_id: str,
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
+) -> Response:
+    """Descarga la Hoja de Orden de Trabajo individual en PDF.
+
+    Incluye la ficha del activo, la descripción del servicio, el trabajo
+    realizado, el detalle de repuestos y las líneas de firma.
+    """
+    from uuid import UUID
+
+    from src.features.maintenance.infrastructure.exporters import (
+        order_code,
+        render_order_sheet_pdf,
+    )
+
+    try:
+        parsed_id = UUID(order_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Identificador de OT inválido: '{order_id}'."
+        ) from exc
+
+    repo = MaintenanceOrderRepository(uow)
+    order = await repo.get_by_id(parsed_id)
+    response = await _to_maintenance_response(order, uow)
+
+    return Response(
+        content=render_order_sheet_pdf(response),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{order_code(response).lower()}_sgmm.pdf"'
+            )
+        },
+    )
 
 
 @router.get(

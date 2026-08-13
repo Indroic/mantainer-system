@@ -14,14 +14,23 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from hexcore.infrastructure.repositories.orms.sqlalchemy import BaseModel
 from hexcore.infrastructure.uow import SqlAlchemyUnitOfWork
 
-# Importamos todos los modelos para registrarlos antes de crear tablas en memoria
+# Importamos TODOS los modelos para registrarlos antes de crear tablas en memoria.
+#
+# Han de estar todos: `BaseModel.metadata.create_all` resuelve las claves ajenas
+# por nombre de tabla, así que si falta un modelo referenciado por una FK la
+# creación del esquema falla con `NoReferencedTableError` y los tests se caen en
+# el propio fixture. Faltaban `machine_type` (destino de `machines.machine_type_id`),
+# `solvency` y `notifications`.
 from src.features.user.infrastructure.models import UserMetadataModel
+from src.features.machine_type.infrastructure.models import MachineTypeModel
 from src.features.machine.infrastructure.models import MachineModel
 from src.features.inventory.infrastructure.models import SparePartModel
 from src.features.maintenance.infrastructure.models import (
     MaintenanceOrderModel,
     MaintenanceSparePartModel,
 )
+from src.features.solvency.infrastructure import models as solvency_models  # noqa: F401
+from src.features.notifications.infrastructure import models as notification_models  # noqa: F401
 from src.features.alerts.infrastructure.models import AlertModel
 from src.features.audit.infrastructure.models import AuditLogModel
 from src.shared.infrastructure.database.better_auth_tables import better_auth_metadata

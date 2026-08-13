@@ -10,7 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.features.machine.domain.entities import HorometerUnit, MachineStatus
-from src.shared.infrastructure.reporting.excel import Column, ExcelWorkbook
+from src.shared.infrastructure.reporting.excel import (
+    Column,
+    ExcelWorkbook,
+    parse_decimal_cell,
+    parse_int_cell,
+)
 from src.shared.infrastructure.reporting.pdf import (
     PdfDocument,
     format_number,
@@ -225,23 +230,16 @@ def parse_machine_row(row: dict[str, str]) -> dict:
     if "@" in motor_serial:
         raise ValueError(f"'{COL_MOTOR_SERIAL}' no puede contener el carácter '@'.")
 
-    raw_year = (row.get(COL_YEAR) or "").strip()
-    try:
-        manufacture_year = int(float(raw_year)) if raw_year else 0
-    except ValueError as exc:
-        raise ValueError(
-            f"'{COL_YEAR}' debe ser numérico (recibido: '{raw_year}')."
-        ) from exc
+    # Se usa el parser compartido: openpyxl entrega los números de Excel como
+    # float ("2019.0", "1250.5") y un CSV editado a mano puede traer separadores
+    # de miles o coma decimal.
+    manufacture_year = parse_int_cell(row.get(COL_YEAR), field=COL_YEAR)
     if manufacture_year <= 0:
         raise ValueError(f"'{COL_YEAR}' es obligatorio y debe ser un año válido.")
 
-    raw_horometer = (row.get(COL_HOROMETER) or "").strip()
-    try:
-        current_horometer = float(raw_horometer.replace(",", "")) if raw_horometer else 0.0
-    except ValueError as exc:
-        raise ValueError(
-            f"'{COL_HOROMETER}' debe ser numérico (recibido: '{raw_horometer}')."
-        ) from exc
+    current_horometer = parse_decimal_cell(
+        row.get(COL_HOROMETER), field=COL_HOROMETER
+    )
 
     return {
         "code": code,
