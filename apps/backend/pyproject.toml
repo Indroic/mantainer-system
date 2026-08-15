@@ -3,6 +3,7 @@ name = "sgmm-backend"
 version = "2.0.0"
 description = "Backend REST API para el Sistema de Gestión de Mantenimiento de Maquinaria Pesada (SGMM) utilizando HexCore"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "hexcore>=2.0.5",

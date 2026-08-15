@@ -12,7 +12,10 @@ import { TRPCProvider } from "./utils/trpc";
 
 // Mismo origen que la web: el router tRPC se alcanza vía proxy inverso en
 // `/trpc/*` (configurado en nginx), evitando CORS.
-const authBaseURL = "https://sgmm.indroic.dev";
+//
+// Se resuelve en tiempo de ejecución para que el mismo bundle sirva en
+// producción y en el stack local de docker-compose.
+const authBaseURL = typeof window !== "undefined" ? window.location.origin : "";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({

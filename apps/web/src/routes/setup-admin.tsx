@@ -10,7 +10,10 @@ import z from "zod";
 import { authClient } from "@/lib/auth-client";
 
 // Mismo origen que la web: /create-planner se alcanza vía proxy inverso (nginx).
-const AUTH_URL = "https://sgmm.indroic.dev";
+//
+// Se resuelve en tiempo de ejecución para que el mismo bundle sirva en
+// producción y en el stack local de docker-compose.
+const AUTH_URL = typeof window !== "undefined" ? window.location.origin : "";
 
 export const Route = createFileRoute("/setup-admin")({
   component: SetupAdminComponent,

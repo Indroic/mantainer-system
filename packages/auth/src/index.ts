@@ -49,18 +49,33 @@ function isPlannerRole(role: unknown): boolean {
 }
 
 // =============================================================================
-// Configuración HARDCODEADA (no depende de variables de entorno).
 // Topología SINGLE-ORIGIN (todo detrás del proxy inverso de la web):
 //   - web + auth + api:  https://sgmm.indroic.dev
 //     · /api/auth/*  -> auth-server (Better Auth)
 //     · /trpc/*      -> auth-server
 //     · /api/*       -> backend FastAPI
 // Al servirse todo desde el mismo dominio, NO hay CORS ni cookies cross-subdominio.
+//
+// Los valores de producción siguen siendo el fallback, de modo que el
+// despliegue actual no cambia; pero el entorno puede sobreescribirlos, que es
+// lo que necesita el stack local de docker-compose (origen http://localhost).
+//
+// TODO(seguridad): BETTER_AUTH_SECRET no debería vivir en el repositorio. Al
+// estar versionado debe considerarse comprometido: rótalo y pásalo únicamente
+// por variable de entorno.
 // =============================================================================
-const BETTER_AUTH_URL = "https://sgmm.indroic.dev";
+const PROD_URL = "https://sgmm.indroic.dev";
+const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || PROD_URL;
 const BETTER_AUTH_SECRET =
+  process.env.BETTER_AUTH_SECRET ||
   "df8374a2b918fcd3e5719365bc920c8de817f5492bc394a108de92bc8172fa8b";
-const TRUSTED_ORIGINS = ["https://sgmm.indroic.dev"];
+const TRUSTED_ORIGINS = Array.from(
+  new Set(
+    [PROD_URL, BETTER_AUTH_URL, ...(process.env.TRUSTED_ORIGINS || "").split(",")]
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ),
+);
 
 export function createAuth() {
   const db = createDb();

@@ -2,7 +2,13 @@ import { authClient } from "./auth-client";
 
 // Mismo origen que la web: el backend FastAPI se alcanza vía proxy inverso bajo
 // `/api/*` (configurado en nginx). Los routers de FastAPI ya cuelgan de `/api`.
-const API_BASE_URL = "https://sgmm.indroic.dev/api";
+//
+// El origen se resuelve en tiempo de ejecución en vez de fijarse en el bundle:
+// así el mismo artefacto sirve en producción y en el stack local de
+// docker-compose. Con el dominio fijado, la web local hablaba con el servidor
+// de producción.
+const SAME_ORIGIN = typeof window !== "undefined" ? window.location.origin : "";
+const API_BASE_URL = `${SAME_ORIGIN}/api`;
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;

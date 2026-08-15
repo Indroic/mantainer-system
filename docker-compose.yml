@@ -59,7 +59,11 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres_secure_password@postgres:5432/sgmm_auth_db}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-better_auth_secret_32_characters_long_key}
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      # Topología single-origin: el navegador entra por el nginx de `web` (:80),
+      # no por este contenedor. Better Auth valida el Origin de la petición
+      # contra este valor, así que debe ser el de la web, no el del auth-server.
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost}
+      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-http://localhost,http://localhost:3000}
     ports:
       - "3000:3000"
     restart: always
